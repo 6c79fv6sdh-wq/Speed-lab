@@ -2,10 +2,11 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
+    <!-- Масштабирование пальцами разрешено намеренно: maximum-scale=1 и
+         user-scalable=no запрещали зум даже там, где он реально нужен
+         (мелкий текст, доска на маленьком экране) — доступность важнее
+         косметической невозможности случайно отмасштабировать интерфейс. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#161512" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -20,7 +21,12 @@
         <span class="brand-name">ScienceChess <span class="brand-accent">Lab</span></span>
         <span class="brand-by">by Vladislav Dmitrovsky</span>
       </header>
-      <nav id="tabs"></nav>
+      <nav id="tabs" aria-label="Основная навигация">
+        <div class="tabs-row tabs-row--primary" id="tabs-primary">
+          <div class="tabs-scroll" id="tabs-primary-scroll"></div>
+        </div>
+        <div class="tabs-row tabs-row--secondary" id="tabs-secondary" aria-label="Тренировки"></div>
+      </nav>
       <main id="view"></main>
       <footer id="credit">
         <span class="credit-name">ScienceChess Lab</span>

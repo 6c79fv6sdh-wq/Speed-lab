@@ -21,7 +21,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     src: './showcase/premove.webp',
-    title: 'Premove',
+    title: 'Премувы',
     caption: 'Форсированное взятие, safe/unsafe и отмена — сотни реальных позиций из партий мастеров.',
   },
   {
@@ -41,7 +41,7 @@ const SLIDES: Slide[] = [
   },
   {
     src: './showcase/scramble.webp',
-    title: 'Цейтнот',
+    title: 'Спарринг',
     caption: 'Решения и управление временем в экстремальном цейтноте.',
   },
   {
@@ -60,8 +60,10 @@ function buildGallery(slides: Slide[]): HTMLElement {
 
   const slideEls = slides.map((s) =>
     el('figure', { class: 'carousel-slide' }, [
-      // Без loading="lazy": все шесть скриншотов вместе весят ~55 КБ, зато
-      // свайп по галерее не упирается в пустой кадр, пока грузится соседний.
+      // Без loading="lazy": все шесть скриншотов вместе весят ~300 КБ (кадры
+      // сняты в 4x от 560x257 — иначе на широких экранах картинка тянется
+      // выше своего разрешения и мылится), но свайп по галерее всё равно не
+      // должен упираться в пустой кадр, пока грузится соседний.
       el('img', {
         src: s.src,
         alt: `Скриншот режима «${s.title}»`,
@@ -392,7 +394,7 @@ export function mountGate(onUnlock: () => void, initialError?: string): void {
       el('p', { class: 'hero-lead' }, [
         'Тренажеры скорости, внимания и принятия решений в шахматах',
       ]),
-      el('p', { class: 'hero-modules' }, ['Моторика · Тактика · Premove · Дебюты · Цейтнот']),
+      el('p', { class: 'hero-modules' }, ['Моторика · Тактика · Премувы · Дебюты · Спарринг']),
     ]),
     panel('Тренировочные модули', [buildGallery(SLIDES)]),
     panel('Прогресс', [buildProgressBlock()]),

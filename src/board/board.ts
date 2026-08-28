@@ -1,6 +1,7 @@
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
+import type { DrawBrushes } from 'chessground/draw';
 import type { Color, Key, Dests } from 'chessground/types';
 import { BOARD_SIZE_MAX, BOARD_HEIGHT_RESERVE, fitBoardSize } from '../core/settings';
 
@@ -21,6 +22,100 @@ import './board.css';
  */
 
 export type InputMode = 'select' | 'drag' | 'both';
+
+/**
+ * Разметка правой кнопкой — кольца и стрелки поверх доски, как в Lichess:
+ * зажал правую кнопку и потянул — стрелка; отпустил на той же клетке —
+ * кольцо. Shift/Ctrl переключают на второй цвет, Alt/Meta — на третий,
+ * оба вместе — на четвёртый (это делает сам Chessground, см. draw.ts);
+ * имена ключей (green/red/blue/yellow) исторические — Chessground ждёт
+ * их именно такими, но цвета здесь свои, под приборный тёмно-зелёный
+ * стиль приложения, а не стоковые лайшесовские.
+ *
+ * Цвета — те же токены, что и в styles.css (--accent-hi/--danger/
+ * --accent2/--warn): одна палитра на всё приложение, а не отдельная
+ * для разметки доски. lineWidth снижен с дефолтных 10 до 7 — тоньше,
+ * спокойнее, ближе к чертежу, чем к маркеру; opacity — стабильно
+ * высокая (а не 0.6 по умолчанию), потому что разметку часто показывают
+ * с расстояния — на проекторе или через шеринг экрана, — там бледная
+ * линия просто не читается.
+ */
+const DRAW_BRUSHES: DrawBrushes = {
+  green: { key: 'green', color: '#26a473', opacity: 0.9, lineWidth: 7 },
+  red: { key: 'red', color: '#a63d3d', opacity: 0.9, lineWidth: 7 },
+  blue: { key: 'blue', color: '#4a90c4', opacity: 0.9, lineWidth: 7 },
+  yellow: { key: 'yellow', color: '#d9a05b', opacity: 0.9, lineWidth: 7 },
+};
+
+/**
+ * Металлический блик на стрелках разметки — светлый→цвет→тёмный по
+ * диагонали, тот же приём, что и на шлифованной панели корпуса
+ * (styles.css, .panel), только здесь на самой линии. Плоская заливка
+ * одним тоном (то, что рисует Chessground по умолчанию) на приборном
+ * фоне читалась как маркер на бумаге — «дёшево» рядом с остальным UI.
+ * Ключ словаря — тот же hex, что и color кисти выше: применяется через
+ * CSS-селектор по атрибуту (см. board.css), без второго источника
+ * истины для самих цветов.
+ */
+const ARROW_GRADIENT_STOPS: Record<string, [light: string, dark: string]> = {
+  '#26a473': ['#7ff0c0', '#0c5c3c'],
+  '#a63d3d': ['#f0a3a3', '#6b2020'],
+  '#4a90c4': ['#a9d4f5', '#1f5678'],
+  '#d9a05b': ['#ffd39e', '#8a5a22'],
+};
+
+function arrowGradientId(hex: string): string {
+  return `cg-arrow-grad-${hex.slice(1)}`;
+}
+
+let arrowDefsInjected = false;
+
+/**
+ * <linearGradient> для градиента на стрелках — один набор на всю
+ * страницу, вставлен один раз при первой доске с разрешённым рисованием.
+ *
+ * userSpaceOnUse с координатами -4..4 — это ровно viewBox у
+ * `<svg class="cg-shapes">` в Chessground (см. wrap.js), а не
+ * objectBoundingBox по умолчанию: для строго горизонтальной или
+ * вертикальной стрелки (ход по горизонтали/вертикали) один из размеров
+ * bounding box равен нулю, и objectBoundingBox-градиент на такой стрелке
+ * попросту не рисуется. Общие фиксированные координаты на весь борд ещё
+ * и дают эффект одного источника света для всех стрелок сразу, а не
+ * блика на каждой по отдельности.
+ */
+function ensureArrowGradientDefs(): void {
+  if (arrowDefsInjected) return;
+  arrowDefsInjected = true;
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.style.position = 'absolute';
+  const defs = document.createElementNS(NS, 'defs');
+  for (const [hex, [light, dark]] of Object.entries(ARROW_GRADIENT_STOPS)) {
+    const grad = document.createElementNS(NS, 'linearGradient');
+    grad.setAttribute('id', arrowGradientId(hex));
+    grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+    grad.setAttribute('x1', '-4');
+    grad.setAttribute('y1', '-4');
+    grad.setAttribute('x2', '4');
+    grad.setAttribute('y2', '4');
+    for (const [offset, color] of [
+      ['0%', light],
+      ['48%', hex],
+      ['100%', dark],
+    ] as const) {
+      const stop = document.createElementNS(NS, 'stop');
+      stop.setAttribute('offset', offset);
+      stop.setAttribute('stop-color', color);
+      grad.appendChild(stop);
+    }
+    defs.appendChild(grad);
+  }
+  svg.appendChild(defs);
+  document.body.appendChild(svg);
+}
 
 /**
  * Высота окна, не дёргающаяся от адресной строки Safari.
@@ -82,6 +177,15 @@ export interface BoardOptions {
   inputMode: InputMode;
   /** Разрешить premove. */
   premovable?: boolean;
+  /**
+   * Разметка правой кнопкой (стрелки/кольца). По умолчанию включена — см.
+   * DRAW_BRUSHES выше. Отключается точечно там, где правая кнопка уже
+   * занята своим смыслом: на доске Премувов это «снять premove», как и на
+   * настоящем Lichess, — заводить там ещё и рисование значило бы городить
+   * жест, которого на Lichess не существует, ровно то, чего просили
+   * избегать.
+   */
+  drawable?: boolean;
   /** Анимация перестановки фигур. В тестах выключается. */
   animation?: boolean;
   /** Только просмотр, ходы не принимаются. */
@@ -130,6 +234,7 @@ export class Board {
     container.appendChild(this.wrap);
     this.rendered = fitBoardSize(opts.size, this.availWidth(), this.availHeight());
     this.applySize(this.rendered);
+    if (opts.drawable !== false) ensureArrowGradientDefs();
 
     this.api = Chessground(this.wrap, this.baseConfig());
     this.installGuards();
@@ -187,7 +292,16 @@ export class Board {
         deleteOnDropOff: false,
       },
       selectable: { enabled: o.inputMode !== 'drag' },
-      drawable: { enabled: false },
+      drawable: {
+        enabled: o.drawable !== false,
+        visible: true,
+        defaultSnapToValidMove: true,
+        // Левый клик стирает разметку — тот же приём, что у Lichess: рисуешь
+        // объяснение правой кнопкой, а любой обычный ход или клик левой
+        // (в том числе выбор фигуры) стирает её сам, вручную очищать не надо.
+        eraseOnClick: true,
+        brushes: DRAW_BRUSHES,
+      },
       events: {
         select: (key) => this.opts.onSelect?.(key),
       },
@@ -398,6 +512,48 @@ export class Board {
 
   hasPremove(): boolean {
     return !!this.api.state.premovable.current;
+  }
+
+  /**
+   * Разрешённые клетки для premove — заданные явно, а не геометрией
+   * Chessground по умолчанию.
+   *
+   * У штатного расчёта Chessground (см. node_modules/chessground/dist/
+   * premove.js, функция premove()) премув считается ЧИСТО ПО ГЕОМЕТРИИ
+   * фигуры: слайдеры (ладья/слон/ферзь) «бьют» сквозь любые фигуры на
+   * линии, будто доска пуста, а про позицию ПОСЛЕ ожидаемого хода
+   * соперника функция вообще ничего не знает — она не отличит клетку,
+   * которая реально станет легальной, от клетки, куда фигура не сможет
+   * дойти из-за связки, блокера или шаха. Итог одинаково плох в обе
+   * стороны: подсказка может как предложить заведомо недостижимую
+   * клетку, так и (реже) не предложить клетку, которая случайно
+   * подсвечена не была.
+   *
+   * customDests, наоборот, — это ровно тот список клеток, что и выдаёт
+   * dests() (core/chess.ts) ДЛЯ ПОЗИЦИИ ПОСЛЕ ожидаемого хода: тогда
+   * «поставить премув» на клетке возможно ровно тогда и только тогда,
+   * когда после ожидаемого хода соперника этот ход легален по-настоящему —
+   * блокеры, связки и шахи учтены той же функцией, что считает обычные
+   * ходы, а не отдельной приблизительной геометрией.
+   */
+  setPremoveDests(dests: Dests | undefined): void {
+    this.api.set({ premovable: { customDests: dests } });
+  }
+
+  /**
+   * Показать премув на доске БЕЗ участия пользователя — нужно режиму
+   * «Отмена»: там премув уже стоит, когда задание открывается, и решение
+   * «оставить/снять» пользователь принимает до хода соперника, а не после
+   * того, как сам его расставил.
+   *
+   * api.setPremove не экспортирован Chessground как публичный метод (он
+   * приватный в board.js), поэтому эффект воспроизводится напрямую через
+   * state — то же самое поле, которое читает hasPremove() ниже, и то же,
+   * что playPremove()/cancelPremove() штатно меняют.
+   */
+  presetPremove(orig: Key, dest: Key): void {
+    this.api.state.premovable.current = [orig, dest];
+    this.api.redrawAll();
   }
 
   /** Скрыть фигуры, оставив доску (для упражнений с экспозицией). */

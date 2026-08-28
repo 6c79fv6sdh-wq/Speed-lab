@@ -1,25 +1,53 @@
 /*
- * Палитра ScienceChess: тёмный графит и глубокий зелёный.
+ * Палитра и материалы ScienceChess: корпус прибора и глубокий зелёный.
  *
  * Раньше здесь стояли цвета Lichess один в один (#161512 фон, #629924
- * кнопки) — интерфейс читался как его копия. Графит холоднее и нейтральнее
- * коричневого, зелёный глубже и спокойнее салатового: вместе они дают
- * собственное лицо, не мешая доске (её поля не трогаем — классические
- * #f0d9b5/#b58863 узнаются всеми и менять их во вред тренировке).
+ * кнопки) — интерфейс читался как его копия. Доску не трогаем: классические
+ * #f0d9b5/#b58863 узнаются всеми, менять их во вред тренировке.
+ *
+ * Направление «прибор, а не дашборд»: интерфейс собран из трёх материалов,
+ * и каждый несёт смысл, а не украшает —
+ *  - --brushed: лицевая панель со шлифовкой по диагонали. Всё, что
+ *    «корпус» (секции страницы), сделано из неё;
+ *  - --well: врезная поверхность, утопленная в корпус. Всё, во что
+ *    смотрят или чем щёлкают в неактивном состоянии (показания метрик,
+ *    часы, неактивные тумблеры, дорожка прогресса);
+ *  - подъём: приподнятая крышка клавиши со светлой фаской сверху —
+ *    только у главного действия (.btn.primary).
+ * Индикатор (--led) горит там, где есть настоящее состояние, а не для
+ * красоты: активное упражнение и идущая сессия.
  */
 :root {
-  --bg: #101316;
-  --panel: #191d21;
-  --panel2: #222831;
-  --fg: #a7b1ba;
-  --fg-strong: #eef2f5;
+  --bg: #0b0e0d;
+  --panel: #141917;
+  --panel-hi: #1a201e;
+  --panel-lo: #171d1b;
+  --panel2: #1b211f;
+  --well: #0a0d0c;
+  --fg: #a3b0aa;
+  --fg-strong: #eaf0ec;
   --accent: #1d7a52;
-  --accent-hi: #249464;
+  --accent-hi: #26a473;
   --accent2: #4a90c4;
+  --accent-glow: rgba(31, 150, 96, 0.45);
+  --accent-soft: rgba(38, 164, 115, 0.1);
+  --led: #34c98a;
+  --led-glow: rgba(52, 201, 138, 0.55);
+  --border: #242b29;
+  --border-soft: rgba(255, 255, 255, 0.07);
   --danger: #a63d3d;
-  --border: #2c333b;
   --ok: #4fb87a;
   --warn: #d9a05b;
+  --radius-lg: 10px;
+  --radius: 8px;
+
+  /* Шлифованная лицевая панель. Диагональ, а не вертикаль: вертикальный
+     градиент читается как «карточка веб-сайта», диагональный — как
+     металл под наклонным светом. */
+  --brushed: linear-gradient(155deg, var(--panel-hi) 0%, var(--panel) 46%, var(--panel-lo) 100%);
+
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
   color-scheme: dark;
 }
 
@@ -31,11 +59,24 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  /* Едва заметное свечение сверху страницы — глубина без второго слоя
+     разметки: полупрозрачный зелёный радиальный градиент поверх сплошного
+     фона, виден только на тёмных областях, доску и текст не подкрашивает. */
+  background: radial-gradient(1100px 560px at 50% -8%, var(--accent-soft), transparent 60%), var(--bg);
+  background-attachment: fixed;
   color: var(--fg);
   font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
+  /* Страховка от горизонтального скролла страницы: на узких экранах
+     (особенно в Mobile Safari, где метрики кириллического текста и
+     `env(safe-area-inset-*)` считаются иначе, чем в headless-браузере при
+     тестировании) один непредусмотренный широкий элемент раздвигал бы всю
+     страницу вбок и прятал часть интерфейса за правым краем экрана без
+     возможности проскроллить. Внутренние блоки (доска, панели вкладок,
+     таблицы) сами скроллятся по X там, где это уместно — сама же страница
+     скроллиться вбок не должна никогда. */
+  overflow-x: hidden;
 }
 
 #app {
@@ -141,63 +182,259 @@ body {
   font-size: 10px;
 }
 
+/*
+ * Двухуровневая навигация.
+ *
+ * #tabs — общая липкая оболочка на оба ряда сразу (её высоту меряет
+ * stickyTop() в board.ts, чтобы доска не пряталась под неё, — id
+ * специально не меняли, только то, что внутри). Внутри — верхний ряд
+ * из четырёх пунктов и второй ряд, который виден только внутри
+ * «Тренировок»: показывать второй уровень там, где он не нужен, — и
+ * есть тот самый лишний шум, который убирали.
+ */
 #tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0;
   position: sticky;
   top: 0;
-  background: var(--bg);
   z-index: 50;
+  background: var(--bg);
+  padding-top: 10px;
   border-bottom: 1px solid var(--border);
 }
 
-.tab {
-  background: var(--panel);
+.tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/*
+ * Верхний ряд больше НЕ переносится (flex-wrap: wrap раньше кидал сюда же
+ * иконку настроек — margin-left: auto внутри переносимого ряда на узком
+ * экране непредсказуемо швыряет её то на отдельную строку, то в сторону
+ * от остальной навигации, см. .icon-btn). Пункты «Тренировки/Спарринг/
+ * Мои партии/Прогресс» уходят во вложенный .tabs-scroll и при нехватке
+ * ширины листаются вбок сами по себе — сам .tabs-row--primary остаётся
+ * одной строкой ровно из двух элементов: скролл-полоски и иконки.
+ */
+.tabs-row--primary {
+  flex-wrap: nowrap;
+  padding-bottom: 10px;
+}
+
+/*
+ * Горизонтальный скролл вместо переноса строк — обычный мобильный приём
+ * (панель категорий Apple Mail, лента вкладок в браузере): при нехватке
+ * ширины пункты листаются пальцем, а не переносятся на вторую строку,
+ * которая на липкой шапке (#tabs: position sticky) съедала бы лишнюю
+ * высоту и на телефоне толкала бы доску всё ниже. Скроллбар спрятан
+ * (список пунктов короткий, сама возможность полистать — не то, что
+ * нужно постоянно видеть глазами), но прокрутка остаётся полностью
+ * рабочей и с тачпада, и пальцем.
+ */
+.tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Верхний уровень — «призрачные» кнопки без рамок. Раньше все восемь
+ * вкладок были одинаково тяжёлыми плашками с рамкой — ряд читался как
+ * панель админки. Теперь заливку и рамку получает только активный
+ * пункт, у остальных — просто текст с мягкой подсветкой по наведению.
+ */
+.tab-primary {
+  background: transparent;
   color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 14.5px;
+  font-weight: 500;
   cursor: pointer;
+  /* Внутри .tabs-scroll — не даём кнопке сжаться под ширину текста
+     вместо того, чтобы уступить место горизонтальной прокрутке. */
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
-.tab.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+.tab-primary:hover {
+  background: var(--panel);
+  color: var(--fg-strong);
+}
+
+/* Активный раздел — то же включённое положение тумблера, что у сегментов
+   ниже: подсветка изнутри и зелёная кромка, а не залитая зелёным плашка. */
+.tab-primary.active {
+  background: linear-gradient(180deg, rgba(52, 201, 138, 0.17), rgba(52, 201, 138, 0.05));
+  border: 1px solid rgba(52, 201, 138, 0.42);
+  color: var(--fg-strong);
+  box-shadow: inset 0 0 12px -4px var(--led-glow);
+  /* Рамка появляется только у активного пункта, поэтому его собственные
+     8px/16px пришлось бы пересчитать — иначе ряд дёргается на 2px при
+     каждом переключении. */
+  padding: 7px 15px;
+}
+
+/*
+ * Второй уровень (внутри «Тренировок») — легче по весу и визуально
+ * подчинён первому: без заливки, активный пункт держится подчёркиванием
+ * и цветом текста, а не плашкой. Так с одного взгляда видно иерархию —
+ * не два одинаковых ряда кнопок, а раздел и его подпункты.
+ */
+.tabs-row--secondary {
+  display: none;
+  padding: 0 0 10px 10px;
+  gap: 4px;
+  /* Тот же приём, что у .tabs-scroll выше: пять подпунктов «Тренировок»
+     (Сегодня/Моторика/Премувы/Тактика/Дебюты) на телефоне не переносятся
+     на вторую строку липкой шапки, а листаются вбок. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs-row--secondary::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs-row--secondary.visible {
+  display: flex;
+}
+
+.tab-secondary {
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 5px 8px 4px;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.7;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: color 0.15s, opacity 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-secondary:hover {
+  opacity: 1;
+  color: var(--fg-strong);
+}
+
+.tab-secondary.active {
+  color: var(--fg-strong);
+  border-color: var(--accent-hi);
+  opacity: 1;
+}
+
+/*
+ * Настройки — компактная иконка справа от рядов, не пункт в их числе:
+ * отдельная форма (круг вместо плашки) сама по себе говорит, что это
+ * не ещё одно занятие, а служебное действие. Кружок того же диаметра,
+ * что стрелки карусели на витрине (.carousel-arrow) — тот же приём.
+ * 44px — не произвольное число: минимальная тач-зона по рекомендациям
+ * Apple HIG и WCAG 2.5.5, меньше — легко промахнуться пальцем.
+ *
+ * margin-left: auto здесь больше не нужен и специально убран: раньше
+ * settingsBtn был членом того же переносимого ряда, что и сами пункты
+ * (.tabs-row--primary с flex-wrap: wrap), и auto-отступ раздвигал их до
+ * упора внутри строки — но на переносе (а на телефоне четыре пункта не
+ * влезают почти никогда) это швыряло иконку куда попало. Теперь пункты
+ * листаются в собственном .tabs-scroll (flex: 1 1 auto), а иконка —
+ * их сосед с flex: 0 0 auto: она и без auto-отступа всегда у правого
+ * края ряда, потому что скролл-полоска перед ней забирает всё
+ * оставшееся место сама.
+ */
+.icon-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.icon-btn:hover {
+  background: var(--panel2);
+  color: var(--fg-strong);
+  border-color: var(--fg);
+}
+
+.icon-btn.active {
+  background: var(--panel2);
+  color: var(--fg-strong);
+  border-color: var(--fg);
 }
 
 h1 {
   font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--fg-strong);
   margin: 14px 0 8px;
 }
 
 h2 {
   font-size: 15px;
+  font-weight: 600;
   color: var(--fg-strong);
   margin: 0 0 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.85;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
 }
 
 h3 {
   font-size: 14px;
+  font-weight: 600;
   color: var(--fg-strong);
   margin: 14px 0 6px;
 }
 
+/*
+ * Панель — лицевая сторона прибора: шлифовка по диагонали, резкая фаска
+ * сверху (1px, а не размытый блик — кромка металла, не стекло) и плотная
+ * тень вниз. Один материал на все разделы, поэтому страница читается
+ * как один корпус, а не набор карточек из разных версий интерфейса.
+ */
 .panel {
-  background: var(--panel);
+  background: var(--brushed);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   margin: 12px 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 38px -30px rgba(0, 0, 0, 0.9);
 }
+
+/*
+ * Винтов по углам панели здесь нет намеренно. Их пробовали (по одному в
+ * каждом углу панели с доской) — на реальном масштабе точка в 6px читается
+ * не как винт, а как пылинка на экране, а верхняя левая ещё и попадает
+ * ровно под заголовок панели, который начинается с того же отступа.
+ * Приборный характер и без них держат шлифованная лицевая панель, врезные
+ * табло, тумблеры и кант доски — а лишняя деталь, которая не читается,
+ * это ровно тот визуальный шум, которого мы и избегаем.
+ */
 
 .row {
   display: flex;
@@ -222,39 +459,76 @@ label {
   opacity: 0.85;
 }
 
+/*
+ * Вторичная кнопка — клавиша заподлицо с панелью: узкая фаска сверху,
+ * тонкая тень снизу, никакого свечения. Заметна, но не спорит с главным
+ * действием.
+ */
 .btn {
   display: inline-block;
-  background: var(--panel2);
+  background: linear-gradient(180deg, var(--panel2), #161b19);
   color: var(--fg-strong);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 9px 14px;
   font-size: 14px;
   text-decoration: none; /* на случай <a class="btn"> — кнопки не подчёркиваются */
   text-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.04s;
 }
 
 .btn:hover {
-  border-color: #3c454f;
+  border-color: #33403b;
+  background: linear-gradient(180deg, #212824, #1a201d);
 }
 
+/*
+ * Главное действие — единственная приподнятая клавиша на экране:
+ * светлая фаска сверху, жёсткий «борт» снизу и подсветка под ней. Надпись
+ * тёмная по зелёному, как гравировка на светлой клавише прибора: белая по
+ * зелёному — самый ходовой SaaS-приём, из-за него кнопка и читалась как
+ * шаблонная.
+ */
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  border-color: rgba(0, 0, 0, 0.4);
+  color: #06140d;
+  font-weight: 650;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 0 rgba(0, 0, 0, 0.35),
+    0 10px 20px -12px var(--accent-glow);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.07);
+}
+
+/* Нажатие — клавиша уходит вниз и теряет борт: движение то же, что у
+   настоящей кнопки, а не подмигивание цветом. */
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.primary:active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 rgba(0, 0, 0, 0.35),
+    0 6px 14px -12px var(--accent-glow);
 }
 
 .btn.danger {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: linear-gradient(180deg, #b34747, var(--danger));
+  border-color: rgba(0, 0, 0, 0.4);
   color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 
+/* Обесточенная клавиша: гаснет и перестаёт выступать над панелью. */
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
+  transform: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 /*
@@ -268,21 +542,37 @@ label {
  * переносе. Теперь у каждой кнопки своя рамка и скругление — сколько бы
  * строк ни вышло, ряд выглядит одинаково ровным.
  */
+/*
+ * Внутри — grid, а не flex-wrap. С flex-wrap у каждой кнопки было
+ * flex: 1 1 auto, и когда ряд переносился (а на телефоне переносится
+ * почти всегда — вариантов в сегменте часто 5–9), последняя, неполная
+ * строка тянула СВОИ кнопки на всю ширину независимо от предыдущих:
+ * ряд из 3 кнопок мог идти над рядом из 2, где те же по смыслу кнопки
+ * вдруг вдвое шире — весь блок читался рваным, «наваливающимся».
+ * Grid считает колонки один раз на весь блок, поэтому кнопка в любой
+ * строке той же колонки — той же ширины, что и над ней.
+ *
+ * auto-fit, а не auto-fill: у auto-fill пустые колонки в конце ряда
+ * остаются в сетке и просто пустуют (сегмент из двух кнопок — «Играю:
+ * Белыми/Чёрными» — получил бы узкие кнопки с пустым хвостом справа).
+ * auto-fit схлопывает колонки, в которые ни разу никто не попал, и
+ * отдаёт их долю оставшимся — двум кнопкам достаётся ровно половина
+ * строки каждой, как и раньше при flex.
+ */
 .seg {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
   gap: 6px;
   /*
-   * .seg — одновременно flex-item строки .row (рядом с <label>) и сам
-   * flex-контейнер для кнопок. Без flex-basis он просит место по своему
+   * .seg — flex-item строки .row (рядом с <label>), сама сетка кнопок
+   * внутри его не касается. Без flex-basis он просит место по своему
    * содержимому целиком: .row тогда не переносит его от подписи на новую
-   * строку, а сам .seg вылезает за панель — кнопки внутри не переносятся,
-   * потому что снаружи их никто не подрезал.
+   * строку, а сам .seg вылезает за панель.
    *
    * flex-basis 260px — это то, сколько .seg просит у .row при расчёте
    * переноса: если подписи и этих 260px не хватает в строке, .row уводит
-   * .seg на новую строку целиком, и там он получает всю ширину панели —
-   * только тогда его собственным кнопкам есть от чего переноситься.
+   * .seg на новую строку целиком, и только там его собственная сетка
+   * получает всю ширину панели, от которой можно считать колонки.
    * min-width: 0 разрешает ужаться меньше контента, max-width: 100%
    * не даёт вылезти за родителя, даже когда всё-таки делят строку с
    * подписью.
@@ -292,36 +582,67 @@ label {
   max-width: 100%;
 }
 
+/*
+ * Сегмент — тумблер на панели, а не таблетка. В покое утоплен в корпус
+ * (тёмная врезка + тень сверху внутрь), включённый подсвечен изнутри
+ * зелёным и обведён зелёной кромкой. Раньше активный сегмент заливался
+ * зелёным целиком: на «Тактике», где переключателей три ряда, это давало
+ * три ярких пятна, спорящих с доской. Подсветка вместо заливки оставляет
+ * ряд спокойным, но выбранное положение видно сразу.
+ */
 .seg-btn {
-  flex: 1 1 auto;
-  background: var(--panel2);
+  /* Ширина — от grid-колонки родителя (.seg), не от себя: заполняет
+     свою ячейку целиком (grid по умолчанию растягивает элементы). */
+  width: 100%;
+  background: var(--well);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 8px 12px;
   font-size: 13px;
   text-align: center;
   cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: background-color 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.12s;
+}
+
+.seg-btn:hover {
+  border-color: #33403b;
+  color: var(--fg-strong);
 }
 
 .seg-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: linear-gradient(180deg, rgba(52, 201, 138, 0.17), rgba(52, 201, 138, 0.05));
+  border-color: rgba(52, 201, 138, 0.42);
+  color: var(--fg-strong);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), inset 0 0 12px -4px var(--led-glow);
 }
 
+/* Поля ввода — та же врезка, что у показаний: всё, во что вводят или
+   смотрят, утоплено в панель, всё, чем щёлкают, — выступает. */
 input[type='text'],
 input[type='number'],
 textarea,
 select {
-  background: var(--panel2);
+  background: var(--well);
   color: var(--fg-strong);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
   padding: 8px 10px;
   font-size: 14px;
   font-family: inherit;
   width: 100%;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+input[type='text']:focus,
+input[type='number']:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: rgba(52, 201, 138, 0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 0 12px -4px var(--led-glow);
 }
 
 textarea {
@@ -333,14 +654,16 @@ textarea {
 
 /* Системный ползунок рисует дорожку почти белой — на графите она бьёт по
    глазам сильнее, чем сам регулятор. Задаём дорожку и бегунок явно. */
+/* Регулятор: прорезь в панели и подъёмная ручка в ней. */
 input[type='range'] {
   width: 100%;
   appearance: none;
   -webkit-appearance: none;
   height: 6px;
   border-radius: 999px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
+  background: var(--well);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
   cursor: pointer;
 }
 
@@ -349,8 +672,9 @@ input[type='range']::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid var(--accent-hi);
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
 
@@ -358,15 +682,16 @@ input[type='range']::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--accent);
-  border: 1px solid var(--accent-hi);
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
 
 input[type='range']::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: var(--panel2);
+  background: var(--well);
 }
 
 input[type='checkbox'] {
@@ -395,7 +720,9 @@ input[type='checkbox'] {
 }
 
 .stat-v {
-  font-size: 16px;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
   color: var(--fg-strong);
   font-variant-numeric: tabular-nums;
 }
@@ -442,9 +769,12 @@ input[type='checkbox'] {
 }
 
 .tbl th {
-  background: var(--panel2);
+  background: linear-gradient(180deg, var(--panel2), #171d1b);
   color: var(--fg-strong);
   font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
 }
 
 .tbl td.empty {
@@ -457,6 +787,44 @@ input[type='checkbox'] {
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-start;
+}
+
+/*
+ * Моторика — единственный экран, где над доской есть переключатель
+ * упражнений («Вектор»/«Сигнал»). Раньше он был отдельной строкой во всю
+ * ширину панели, а доска — своего откалиброванного размера, никак с этой
+ * шириной не связанного: шов между кнопками случайно попадал где-то
+ * поверх доски, у части пользователей — прямо на угол. Grid-колонка
+ * auto решает это раз и навсегда: она сама подстраивается под
+ * фактическую ширину доски (inline-block, сколько напечатал board.ts),
+ * а переключатель — обычный grid-item той же колонки — растягивается
+ * ровно на неё же, какой бы размер доски ни был откалиброван.
+ */
+.board-area:has(.exercise-seg) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 10px;
+  align-items: start;
+}
+
+.board-area:has(.exercise-seg) > .exercise-seg {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.board-area:has(.exercise-seg) > .board-host {
+  grid-column: 1;
+  grid-row: 2;
+  /* Без этого доска как grid-item растянулась бы на всю колонку, если
+     переключателю вдруг понадобится больше места, чем доске, — а доска
+     должна оставаться ровно откалиброванного размера, не шире. */
+  justify-self: start;
+}
+
+.board-area:has(.exercise-seg) > .side {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .board-host {
@@ -498,26 +866,30 @@ input[type='checkbox'] {
   margin: 8px 0;
 }
 
+/* Часы — то же врезное табло, что и метрики, только крупнее. */
 .clock {
   flex: 1;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: var(--well);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
   padding: 8px 12px;
-  font-size: 26px;
+  font-family: var(--mono);
+  font-size: 25px;
   font-variant-numeric: tabular-nums;
   text-align: center;
   color: var(--fg-strong);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* Чей ход — то же «включённое» состояние, что у тумблеров. */
 .clock.active {
-  background: #1a2a24;
-  border-color: var(--accent);
+  border-color: rgba(52, 201, 138, 0.42);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 16px -4px var(--led-glow);
 }
 
 .clock.flagged {
-  background: #40201f;
   border-color: var(--danger);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 16px -4px rgba(166, 61, 61, 0.7);
 }
 
 .clock-label {
@@ -531,28 +903,32 @@ input[type='checkbox'] {
   max-height: 220px;
   overflow-y: auto;
   font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  font-family: var(--mono);
+  background: var(--well);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
   padding: 8px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
 .log div {
   padding: 1px 0;
 }
 
+/* Дорожка — прорезь в панели, заполнение — светящаяся шкала в ней. */
 .progress {
   height: 6px;
-  background: var(--panel2);
+  background: var(--well);
   border-radius: 3px;
   overflow: hidden;
   margin: 8px 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .progress > div {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), var(--led));
+  box-shadow: 0 0 8px -1px var(--led-glow);
   transition: width 0.15s;
 }
 
@@ -588,13 +964,29 @@ code {
     gap: 12px;
   }
 
-  #tabs {
-    gap: 5px;
+  /* На телефоне доска и так занимает всю ширину — вторая grid-колонка
+     не нужна, боковая панель просто идёт под доской, как раньше. */
+  .board-area:has(.exercise-seg) {
+    grid-template-columns: 1fr;
   }
 
-  .tab {
-    padding: 7px 10px;
-    font-size: 13px;
+  .board-area:has(.exercise-seg) > .side {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .tabs-row {
+    gap: 0;
+  }
+
+  .tab-primary {
+    padding: 7px 11px;
+    font-size: 13.5px;
+  }
+
+  .tab-secondary {
+    padding: 5px 7px 4px;
+    font-size: 12.5px;
   }
 
   .clock {
@@ -611,6 +1003,128 @@ code {
   .tbl td {
     padding: 5px 7px;
   }
+}
+
+/*
+ * --- Соперник (Спарринг): аватары ботов ---------------------------------
+ * Ряд не переносится (nowrap) — десять аватаров умещаются в одну строку
+ * на обычном экране без переноса; на телефоне лента просто скроллится
+ * вбок тем же приёмом, что и витрина скриншотов (.carousel-viewport):
+ * overflow-x: auto и спрятанный скроллбар, а не сетка в несколько рядов.
+ */
+.bot-picker {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  margin: 0 0 2px;
+  scrollbar-width: none;
+}
+
+.bot-picker::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Раньше ширина кнопки была по содержимому (flex: 0 0 auto): у кого имя
+ * длиннее («Император Пижон»), у того и колонка шире, и сосед справа
+ * съезжал — расстояние между кольцами на глаз плавало от пары к паре.
+ * Фиксированная ширина строит все десять центров на одной сетке: имя
+ * никогда не раздвигает соседей, только обрезается многоточием внутри
+ * своей же колонки (см. .bot-avatar-name).
+ */
+.bot-avatar {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  width: 74px;
+  flex: 0 0 74px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Кольцо — не декор, а доля шкалы силы (--bot-pct ставит JS по месту
+   бота в BOTS, от Щенка Пижона до Императора Пижона): виден порядок силы
+   ещё до того, как прочитана подпись. */
+.bot-avatar-ring {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(var(--led) 0% var(--bot-pct, 0%), rgba(255, 255, 255, 0.08) var(--bot-pct, 0%) 100%);
+  transition: box-shadow 0.15s;
+}
+
+.bot-avatar-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--well);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Заглушка всегда в разметке, просто под картинкой — если <img> не
+   нашла файл (аватар ещё не готов или не завезён), она себя удаляет по
+   onerror, и вместо сломанной иконки браузера видна буква. */
+.bot-avatar-fallback {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--fg);
+  opacity: 0.5;
+}
+
+.bot-avatar-face img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bot-avatar-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  /* Ровно ширина колонки (.bot-avatar: 74px) — имя центрируется под
+     своим кольцом и никогда не вылезает в соседнюю колонку. При таком
+     размере шрифта обрезается только «Император Пижон», самое длинное
+     имя в ростере; остальные девять помещаются целиком. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.bot-avatar.active .bot-avatar-ring {
+  box-shadow: 0 0 10px -1px var(--led-glow);
+}
+
+.bot-avatar.active .bot-avatar-face {
+  background: linear-gradient(180deg, rgba(52, 201, 138, 0.2), rgba(52, 201, 138, 0.06));
+}
+
+.bot-avatar.active .bot-avatar-name {
+  color: var(--fg-strong);
+  font-weight: 650;
+}
+
+/* Пока картинки нет, у выбранного бота буква-заглушка лежит на зелёной
+   подсветке и почти сливается с ней — поднимаем контраст именно здесь. */
+.bot-avatar.active .bot-avatar-fallback {
+  color: var(--fg-strong);
+  opacity: 0.85;
 }
 
 /* --- Витрина Lab (без доступа) ---------------------------------------
@@ -722,7 +1236,7 @@ code {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: #000;
 }
@@ -744,6 +1258,11 @@ code {
   width: 100%;
   height: auto;
   aspect-ratio: 560 / 257;
+  /* object-fit: cover — страховка, а не обязательное условие: исходники
+     уже обрезаны под 560:257 (см. скрипт генерации в public/showcase),
+     но без этого случайное несовпадение сторон растянуло бы картинку
+     вместо аккуратной обрезки. */
+  object-fit: cover;
 }
 
 .carousel-slide figcaption {
@@ -779,14 +1298,22 @@ code {
   gap: 14px;
 }
 
+/* 44px — минимальная тач-зона (Apple HIG/WCAG 2.5.5); раньше было 34px,
+   на телефоне легко промахнуться мимо стрелки.
+   flex-shrink: 0 обязателен: .carousel-controls — flex-строка, и без
+   этого при узком экране (стрелки + 6 точек не помещаются в 340px карты)
+   браузер сжимал именно стрелки — вплоть до ~20px шириной — а не точки.
+   Стрелки — главная навигация и не должны ужиматься; сжиматься уступает
+   .carousel-dots, у которой на то есть запас (see .carousel-dot). */
 .carousel-arrow {
   background: var(--panel2);
   color: var(--fg-strong);
   border: 1px solid var(--border);
   border-radius: 999px;
-  width: 34px;
-  height: 34px;
-  font-size: 17px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -800,33 +1327,59 @@ code {
 .carousel-dots {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 2px;
+  /* min-width:0 — иначе классическая ловушка flexbox: у вложенного
+     flex-контейнера min-width по умолчанию 'auto', то есть он не
+     сжимается ниже своего естественного content-width (274px для 6
+     точек по 44px), и весь дефицит места в .carousel-controls уходит
+     на соседей вместо него. С min-width:0 точки честно уступают место
+     стрелкам (flex-shrink:0, см. .carousel-arrow) и сжимаются сами. */
+  min-width: 0;
 }
 
+/*
+ * Сама точка остаётся маленькой (7px, ::before) — это просто индикатор
+ * позиции, ей не нужно быть заметной кнопкой. Но нажимать на неё должно
+ * быть можно без ювелирной точности: кнопка растягивается до 44×44
+ * невидимым хитбоксом вокруг точки, а не самой точкой.
+ */
 .carousel-dot {
-  width: 7px;
-  height: 7px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: none;
-  border-radius: 999px;
-  background: var(--border);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.carousel-dot.active {
-  background: var(--accent);
+.carousel-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background-color 0.12s, transform 0.12s;
+}
+
+.carousel-dot.active::before {
+  background: var(--accent-hi);
+  transform: scale(1.15);
 }
 
 /* --- Диалог входа: карточка кода доступа ------------------------------ */
 
 .gate-dialog {
-  border: 0;
+  border: 1px solid var(--border);
   padding: 34px 28px 28px;
   width: min(92vw, 380px);
-  background: var(--panel);
+  background: var(--brushed);
   color: var(--fg);
-  border-radius: 18px;
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 28px 70px rgba(0, 0, 0, 0.6);
 }
 
 .gate-dialog::backdrop {
@@ -870,10 +1423,12 @@ code {
 }
 
 .gate-input {
-  background: var(--panel2);
+  background: var(--well);
   color: var(--fg-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  font-family: var(--mono);
   padding: 11px 12px;
   font-size: 16px; /* 16px не даёт Safari на iPhone зумить при фокусе */
   letter-spacing: 0.03em;
@@ -884,7 +1439,8 @@ code {
 
 .gate-input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: rgba(52, 201, 138, 0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 0 12px -4px var(--led-glow);
 }
 
 .gate-error {
@@ -940,28 +1496,41 @@ code {
   gap: 10px;
 }
 
+/* Лёгкая карточка вместо плотной заливки: набор цифр читается быстро,
+   не спорит за внимание с доской и не выглядит панелью админки. */
 .metric {
   display: flex;
   flex-direction: column;
   gap: 3px;
   padding: 14px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--well);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
+  /* Врезка, а не карточка: тень внутрь сверху и светлая кромка снизу —
+     показания смотрятся утопленными в панель. */
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* 10.5px при opacity 0.5 давали ~2.9:1 контраста на --well — ниже порога
+   WCAG AA для мелкого текста (нужно 4.5:1). 11px/0.75 — тот же приглушённый
+   вид подписи прибора, но ~5.2:1, с запасом. */
 .metric-k {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--fg);
-  opacity: 0.6;
+  opacity: 0.75;
 }
 
+/* Показание прибора набирается моноширинным: цифры одной ширины не
+   «пляшут» при обновлении на живой сессии, и сам набор читается как
+   табло, а не как текст на сайте. */
 .metric-v {
-  font-size: 25px;
-  line-height: 1.15;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 23px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--fg-strong);
   font-variant-numeric: tabular-nums;
 }
@@ -976,6 +1545,497 @@ code {
    чтобы не спорить за внимание с самими числами. */
 .metrics-note {
   margin: 8px 0 0;
+}
+
+/*
+ * --- Упражнение «Сигнал» (Тренировки → Моторика) -----------------------
+ * .metric и .seg-btn уже несут общий материал прибора (см. токены выше) —
+ * здесь только специфичное для этого экрана: затемнение колонки на
+ * вспышке и переключатель упражнений с настоящими индикаторами.
+ */
+
+/* Во время вспышки правая колонка чуть гаснет — доска на миг главная. */
+.side--signal.signal-live {
+  opacity: 0.55;
+  transition: opacity 0.12s ease-out;
+}
+
+/*
+ * Переключатель упражнений — двухпозиционный тумблер с индикаторами:
+ * единственное место на сайте, где горит светодиод, потому что здесь он
+ * несёт настоящее состояние (какое упражнение заряжено и идёт ли сессия),
+ * а не отмечает раздел. Индикатор есть у обеих кнопок сразу — так это
+ * читается как банка тумблеров, и ряд не дёргается при переключении.
+ */
+.exercise-seg .seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 14px;
+  font-weight: 550;
+}
+
+.exercise-seg .seg-btn::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  /* Погашенный светодиод — тёмное стекло с бликом, а не серая точка. */
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.exercise-seg .seg-btn.active::before {
+  background: var(--led);
+  box-shadow: 0 0 6px 1px var(--led-glow);
+}
+
+/* Пока идёт сессия, горящий индикатор пульсирует — то же состояние, что
+   раньше показывала отдельная белая точка справа, теперь на самом
+   светодиоде: одна деталь вместо двух. */
+.exercise-seg.is-live .seg-btn.active::before {
+  animation: exercise-live-dot 1.1s ease-in-out infinite;
+}
+
+@keyframes exercise-live-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-seg.is-live .seg-btn.active::before {
+    animation: none;
+  }
+}
+
+/*
+ * --- Упражнение «Маршрут» (Тренировки → Моторика) ----------------------
+ * Рисунок фигуры — тот же SVG cburnett, что и на самой доске (см.
+ * ROUTE_PIECE_ICON в motorics-route.ts), не юникод-глиф: на iOS системный
+ * шрифт рисует ♜♝♞♛♔ тонкими нечёткими закорючками, а рядом с настоящей
+ * доской это читается как дешёвая заглушка.
+ */
+/* Режим (Классика/Эстафета/Survival) и слот под ним (фигура/статус серии)
+   раньше стояли впритык — у .seg и у пустого div нет собственных полей,
+   в отличие от .prompt/.hint/.metrics-note у остальных упражнений. */
+.route-mode-seg {
+  margin: 0 0 10px;
+}
+
+.route-mode-slot {
+  margin: 0 0 14px;
+}
+
+.route-piece-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  /* Белая заливка SVG-фигуры на тёмной кнопке иначе теряет контур —
+     мягкая тень вместо чистого contrast делает его виднее, не обводкой. */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+.route-piece-seg .seg-btn {
+  padding: 10px 6px;
+}
+
+/* Строка статуса Эстафеты: фигура + бейдж («✓» / «3/5»), между ними —
+   стрелка. Тем же строем, что и .metrics-note ниже, но с рисунками
+   вместо текста. */
+.route-track {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.route-track-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.4;
+}
+
+.route-track-step .route-piece-icon {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.route-track-step.is-done {
+  opacity: 0.65;
+}
+
+.route-track-step.is-active {
+  opacity: 1;
+}
+
+.route-track-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.route-track-arrow {
+  opacity: 0.3;
+  font-size: 11px;
+}
+
+/* --- «Скан конём»: четыре мини-доски ----------------------------------- */
+
+.ks-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-strong);
+  margin: 0 0 6px;
+}
+
+.ks-counter {
+  margin: 0 0 10px;
+}
+
+/*
+ * Один ряд из четырёх на широком экране, 2×2 на узком — порог 720px,
+ * не стандартные 520px: даже планшет в портретной ориентации слишком
+ * узок для четырёх полноразмерных досок в ряд, там квадраты выходят
+ * мельче, чем на телефонной сетке 2×2.
+ */
+.ks-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 0 0 14px;
+}
+
+@media (max-width: 720px) {
+  .ks-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+}
+
+/* Тот же кант, что у главной доски (.hl-board) — тёмная кромка и светлая
+   фаска тенью, не border, — просто в меньшем масштабе. */
+.ks-board {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.75),
+    0 0 0 2px rgba(255, 255, 255, 0.07),
+    0 14px 30px -20px rgba(0, 0, 0, 0.9);
+  transition: box-shadow 0.15s;
+}
+
+.ks-board:focus-visible {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.75),
+    0 0 0 2px var(--accent-hi),
+    0 14px 30px -20px rgba(0, 0, 0, 0.9);
+}
+
+.ks-sq {
+  position: relative;
+}
+
+.ks-sq-light {
+  background: var(--sq-light);
+}
+
+.ks-sq-dark {
+  background: var(--sq-dark);
+}
+
+/* Номер доски — подсказка про клавиши 1–4, не решение задания: сама по
+   себе не выдаёт, где верный ответ, поэтому не конфликтует с запретом на
+   линии/стрелки/подсказки во время решения. */
+.ks-index {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  opacity: 0.55;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ks-piece {
+  position: absolute;
+  inset: 9%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  pointer-events: none;
+}
+
+/* Конь и препятствия — один и тот же белый cburnett-набор, что и на
+   настоящей доске (см. KNIGHT_SCAN_KNIGHT_ICON/KNIGHT_SCAN_OBSTACLE_ICON):
+   различает их силуэт (конь/пешка), не цвет — обе фигуры «свои». */
+.ks-obstacle {
+  opacity: 0.92;
+}
+
+/* Кольцо с точкой в центре — цель обозначена не только цветом: форма
+   читается даже теми, кто плохо различает зелёный, и не теряется, когда
+   на цель в конце пути ложится ещё и пронумерованная точка маршрута. */
+.ks-target-ring {
+  position: absolute;
+  inset: 16%;
+  border: 2px solid var(--accent-hi);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.ks-target-ring::after {
+  content: '';
+  position: absolute;
+  inset: 36%;
+  border-radius: 999px;
+  background: var(--accent-hi);
+}
+
+/* Пронумерованные точки маршрута — только в 800 мс показа ответа после
+   ошибки, никогда во время решения. Без линий и стрелок: точки на самих
+   клетках маршрута, лучше маленького текста «шаг N» и не выглядят как
+   готовая подсказка-стрелка. */
+.ks-path-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44%;
+  height: 44%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--fg-strong);
+  color: var(--well);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.ks-flash-ok {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.75),
+    0 0 0 3px var(--ok),
+    0 0 22px 2px var(--accent-glow);
+}
+
+.ks-flash-bad {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.75),
+    0 0 0 3px var(--danger),
+    0 0 18px 2px rgba(166, 61, 61, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ks-board {
+    transition: none;
+  }
+}
+
+/* --- Snapshot: одна полноразмерная доска + панель фигур ---------------- */
+
+.sn-review-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-strong);
+  margin: 18px 0 10px;
+}
+
+.sn-board {
+  position: relative;
+  width: min(92vw, 460px);
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0 0 14px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.75),
+    0 0 0 2px rgba(255, 255, 255, 0.07),
+    0 18px 40px -22px rgba(0, 0, 0, 0.9);
+}
+
+.sn-sq {
+  position: relative;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sn-sq-light {
+  background: var(--sq-light);
+}
+
+.sn-sq-dark {
+  background: var(--sq-dark);
+}
+
+.sn-piece {
+  position: absolute;
+  inset: 6%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  pointer-events: none;
+}
+
+/* Фигура, которую поставил сам пользователь, — тонкое обводочное кольцо,
+   чтобы отличать от фигур, которые на доске были всегда (их клетка не
+   отвечает на клик, а эту можно снова взять в панель). */
+.sn-piece-user {
+  filter: drop-shadow(0 0 0 var(--accent-hi)) drop-shadow(0 0 2px var(--accent-hi));
+}
+
+.sn-fixation-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: var(--fg-strong);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+.sn-mask {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.55),
+    rgba(0, 0, 0, 0.55) 6px,
+    rgba(0, 0, 0, 0.4) 6px,
+    rgba(0, 0, 0, 0.4) 12px
+  );
+}
+
+.sn-outline-ok {
+  box-shadow: inset 0 0 0 3px var(--ok);
+}
+
+.sn-outline-bad {
+  box-shadow: inset 0 0 0 3px var(--danger);
+}
+
+.sn-outline-missed {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+  outline: 2px dashed rgba(255, 255, 255, 0.45);
+  outline-offset: -2px;
+}
+
+.sn-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+  min-height: 52px;
+}
+
+.sn-panel-piece {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--well);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sn-panel-piece .sn-piece {
+  inset: 8%;
+}
+
+.sn-panel-piece-armed {
+  border-color: var(--accent-hi);
+  box-shadow: 0 0 0 2px var(--accent-hi), 0 0 14px 1px var(--accent-glow);
+}
+
+.sn-review-row {
+  margin: 0 0 16px;
+}
+
+.sn-review-label {
+  margin: 0 0 6px;
+}
+
+.sn-review-pair {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.sn-mini-board {
+  width: 168px;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75), 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.sn-mini-sq {
+  position: relative;
+}
+
+.sn-mini-sq-light {
+  background: var(--sq-light);
+}
+
+.sn-mini-sq-dark {
+  background: var(--sq-dark);
+}
+
+.sn-mini-sq .sn-piece {
+  inset: 8%;
+}
+
+@media (max-width: 520px) {
+  .sn-board {
+    width: min(94vw, 380px);
+  }
+  .sn-mini-board {
+    width: 132px;
+  }
 }
 
 /* --- «Сегодня»: назначенная тренировка -------------------------------- */
@@ -999,9 +2059,10 @@ code {
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--panel2);
+  background: linear-gradient(180deg, var(--panel2), #161b19);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 /* Пройденный шаг гасим, но не прячем: видно и что сделано, и что дальше. */
@@ -1022,10 +2083,13 @@ code {
   color: var(--fg);
 }
 
+/* Пройденный шаг отмечен так же, как включённый тумблер, — подсветкой
+   изнутри, а не залитым зелёным кружком. */
 .plan-mark.done {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: linear-gradient(180deg, rgba(52, 201, 138, 0.2), rgba(52, 201, 138, 0.06));
+  border-color: rgba(52, 201, 138, 0.45);
+  color: var(--led);
+  box-shadow: inset 0 0 10px -3px var(--led-glow);
 }
 
 .plan-text {
@@ -1081,20 +2145,6 @@ code {
 }
 
 /* --- Настройки и первоначальная настройка ----------------------------- */
-
-/* Настройки — не тренировка: отодвигаем от полосы модулей и приглушаем. */
-.tab-settings {
-  margin-left: auto;
-  background: transparent;
-  opacity: 0.75;
-}
-
-.tab-settings.active {
-  background: var(--panel2);
-  border-color: var(--border);
-  color: var(--fg-strong);
-  opacity: 1;
-}
 
 /* Первый запуск: полоса вкладок ещё пустая, линия под ней ни к чему. */
 #tabs.setup-mode {
@@ -1168,8 +2218,145 @@ code {
   max-width: calc(100vw - 24px);
   padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--panel);
   box-shadow: 0 6px 24px rgb(0 0 0 / 45%);
   font-size: 14px;
+}
+
+/* --- Профили и «Мои партии» ------------------------------------------ */
+
+/* Экран входа по имени. Он первый, что видит ученик, поэтому по центру
+   и без лишнего: одно поле и одна кнопка. */
+.profile-gate {
+  max-width: 34rem;
+  margin: 8vh auto 0;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+
+.profile-error:not(:empty) {
+  color: var(--danger);
+}
+
+/* Список партий: строка-кнопка на всю ширину. Колонки задаются гридом,
+   а не таблицей, — на телефоне таблица уехала бы вбок. */
+.game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-row {
+  display: grid;
+  grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) auto auto minmax(0, 8rem);
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+}
+
+.game-row .game-when {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-row .game-bot {
+  color: var(--fg-strong);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-row .game-tc,
+.game-row .game-moves {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-row .game-result {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Недоигранную партию видно сразу: её можно продолжить, и это главное,
+   что человек ищет глазами в списке. */
+.game-row .game-result.live {
+  color: var(--warn);
+}
+
+/* Лента ходов разбора. Прокручивается сама, чтобы длинная партия не
+   растягивала страницу на два экрана. */
+.game-moves-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 11rem;
+  overflow-y: auto;
+  margin: 8px 0;
+}
+
+.move-chip {
+  background: var(--well);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.move-chip.current {
+  background: linear-gradient(180deg, rgba(52, 201, 138, 0.18), rgba(52, 201, 138, 0.05));
+  border-color: rgba(52, 201, 138, 0.42);
+  color: var(--fg-strong);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), inset 0 0 10px -3px var(--led-glow);
+}
+
+.pgn-details {
+  margin-top: 10px;
+}
+
+.pgn-details summary {
+  cursor: pointer;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.pgn-box {
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+@media (max-width: 520px) {
+  /* На телефоне пять колонок не помещаются: оставляем главное —
+     соперника и итог, остальное уходит во вторую строку. */
+  .game-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+
+  .game-row .game-when {
+    grid-column: 1 / -1;
+    font-size: 12px;
+  }
+
+  .profile-gate {
+    margin-top: 4vh;
+  }
 }

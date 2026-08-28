@@ -26,7 +26,7 @@ cg-board {
 }
 
 /* Подсветки того же тона, что и тема: иначе зелёные точки Lichess спорят
-   с синей или красной доской. Premove и шах оставляем узнаваемыми —
+   с синей или красной доской. Премув и шах оставляем узнаваемыми —
    синий и красный несут смысл сами по себе. */
 .hl-board cg-board square.move-dest {
   background: radial-gradient(
@@ -67,6 +67,14 @@ cg-board {
   color: var(--coord-on-dark);
 }
 
+/*
+ * Доска смонтирована в лицевую панель: обточенный кант из двух колец —
+ * тёмная кромка вплотную к полю и светлая фаска за ней, — плюс плотная
+ * тень под доской. Кольца рисуются тенью, а не border: ширина доски
+ * считается по родителю (см. board.ts), и любой настоящий бордюр сдвинул
+ * бы вёрстку. Мягкое размытое свечение здесь не годится — кант должен
+ * читаться резко, как металл, а не как подсвеченное стекло.
+ */
 .hl-board {
   position: relative;
   touch-action: none;
@@ -76,6 +84,11 @@ cg-board {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: contain;
   max-width: 100%;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.75),
+    0 0 0 2px rgba(255, 255, 255, 0.07),
+    0 20px 46px -26px rgba(0, 0, 0, 0.9);
+  border-radius: 2px;
 }
 
 /*
@@ -116,6 +129,78 @@ cg-board {
   visibility: hidden;
 }
 
+/*
+ * Разметка правой кнопкой (стрелки/кольца, см. DRAW_BRUSHES в board.ts).
+ * У Chessground сама SVG-прослойка по умолчанию рисуется с opacity: 0.6
+ * — рассчитано на то, что цвет уже насыщенный сам по себе. У наших
+ * кистей яркость уже задана через brush.opacity (0.9), поэтому здесь
+ * возвращаем 1, иначе получилось бы вдвойне приглушённо (0.6 × 0.9) и
+ * линию не разглядеть при показе с экрана или через проектор. Тень —
+ * не размытое лайшесовское свечение, а короткая контактная тень: так
+ * стрелка читается собранной, приборной деталью, а не светящимся
+ * маркером поверх доски.
+ */
+.hl-board .cg-shapes {
+  opacity: 1;
+  filter: drop-shadow(0 1.5px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.3));
+}
+
+/*
+ * Плоская заливка одним тоном (то, что рисует Chessground по умолчанию)
+ * на приборном фоне читалась плакатно, «дёшево» — маркер на бумаге, а не
+ * деталь прибора. Заменяем стрелку и наконечник на диагональный
+ * металлический градиент (defs собраны один раз в board.ts,
+ * ensureArrowGradientDefs) — атрибут-селектор ловит presentation-
+ * атрибут stroke/fill, который Chessground проставляет как XML-строку
+ * (а не через style=), поэтому CSS-правило его спокойно перебивает без
+ * !important. Цвет самой кисти остаётся видимым в середине градиента —
+ * значения из DRAW_BRUSHES не потеряны, просто дополнены бликом.
+ */
+.hl-board .cg-shapes line[stroke='#26a473'] {
+  stroke: url('#cg-arrow-grad-26a473');
+}
+.hl-board .cg-shapes line[stroke='#a63d3d'] {
+  stroke: url('#cg-arrow-grad-a63d3d');
+}
+.hl-board .cg-shapes line[stroke='#4a90c4'] {
+  stroke: url('#cg-arrow-grad-4a90c4');
+}
+.hl-board .cg-shapes line[stroke='#d9a05b'] {
+  stroke: url('#cg-arrow-grad-d9a05b');
+}
+
+.hl-board .cg-shapes marker path[fill='#26a473'] {
+  fill: url('#cg-arrow-grad-26a473');
+}
+.hl-board .cg-shapes marker path[fill='#a63d3d'] {
+  fill: url('#cg-arrow-grad-a63d3d');
+}
+.hl-board .cg-shapes marker path[fill='#4a90c4'] {
+  fill: url('#cg-arrow-grad-4a90c4');
+}
+.hl-board .cg-shapes marker path[fill='#d9a05b'] {
+  fill: url('#cg-arrow-grad-d9a05b');
+}
+
+/*
+ * Наконечник Chessground по умолчанию — тупой прямоугольный треугольник
+ * (`M0,0 V4 L3,2 Z`), он и читался «дешёвым маркером». Заменяем на
+ * вытянутый дротик с вогнутым хвостом (как у стрелки-шеврона в
+ * премиальных интерфейсах) через CSS-свойство `d` — оно умеет
+ * переопределять геометрию <path> без правки самого Chessground.
+ * Вогнутая часть (точка (1,2) на средней линии) остаётся ДО refX
+ * маркера (2.05, см. svg.js) — то есть линия визуально уходит под
+ * сплошную часть наконечника, а не в вырез, стыка не видно. Тонкая
+ * тёмная обводка поверх градиента — тот самый «гравированный» край,
+ * которого не было у плоской заливки.
+ */
+.hl-board .cg-shapes marker path {
+  d: path('M0,0.55 L3.7,2 L0,3.45 L1.05,2 Z');
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 0.12;
+  paint-order: stroke fill;
+}
+
 /* Слой для рисования траектории указателя поверх доски. */
 .hl-board-stack {
   position: relative;
@@ -129,3 +214,201 @@ cg-board {
   pointer-events: none;
   z-index: 10;
 }
+
+/*
+ * Световой сигнал упражнения «Сигнал» (modules/motorics-signal.ts).
+ * Смонтирован один раз на весь срок жизни экрана — между сигналами JS
+ * меняет только CSS-переменные --signal-core/-mid/-deep/-duration и
+ * перезапускает класс .signal-pulse, сам импульс целиком на CSS
+ * (opacity + transform, без blur и без покадровой анимации box-shadow
+ * — GPU-friendly).
+ *
+ * Слой света, а не заливка: три тона вместо одного (ядро/тело/глубина)
+ * и два элемента с разной динамикой —
+ *  - .signal-overlay — широкое тело свечения плюс тёмный «свод» по краю
+ *    доски (box-shadow, деликатный, не яркий);
+ *  - ::before — яркое узкое ядро в центре, вспыхивает и гаснет заметно
+ *    быстрее тела (см. keyframes ниже) — вместе это и даёт фазность
+ *    «вспышка → разлив → затухание», а не одномоментную перекраску.
+ *
+ * В покое непрозрачность 0 у обоих слоёв — доска остаётся обычной тёмной.
+ */
+.signal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  /* Совпадает со скруглением доски — иначе свет вылезал бы за её кант. */
+  border-radius: 2px;
+  opacity: 0;
+  /*
+   * Раньше тело заливало почти всю доску насыщенным цветом — пользователь
+   * справедливо назвал это «слишком ярко, колхоз»: сигнал ощущался как
+   * залитый экран, а не как вспышка в одной точке. Причина была не
+   * только в самих цифрах радиуса, но и в единице отсчёта: без ключевого
+   * слова размера `circle` по умолчанию берёт farthest-corner — то есть
+   * 100% это расстояние до самого ДАЛЬНЕГО угла квадрата (診агональ,
+   * заметно больше половины стороны), и прежние «58%» на деле давали
+   * пятно почти во всю доску. `closest-side` делает 100% расстоянием до
+   * БЛИЖАЙШЕЙ стороны — величина, которую интуитивно и подразумевает
+   * «радиус» на квадратной доске, — и внутри неё пятно ужато до итоговых
+   * ~85% этого расстояния к самому краю затухания, то есть основная
+   * яркая часть (до обода на ~58%) остаётся куда компактнее, чем прежде.
+   */
+  background: radial-gradient(
+    circle closest-side at 47% 44%,
+    #fff 0%,
+    var(--signal-core, transparent) 12%,
+    var(--signal-mid, transparent) 26%,
+    color-mix(in srgb, var(--signal-mid, transparent) 55%, var(--signal-deep, transparent) 45%) 38%,
+    color-mix(in srgb, var(--signal-core, transparent) 65%, transparent) 47%,
+    color-mix(in srgb, var(--signal-mid, transparent) 30%, var(--signal-deep, transparent) 70%) 58%,
+    var(--signal-deep, transparent) 68%,
+    transparent 85%
+  );
+  box-shadow:
+    inset 0 0 clamp(14px, 4%, 32px) clamp(2px, 1%, 8px) var(--signal-deep, transparent),
+    0 0 clamp(18px, 5%, 40px) clamp(3px, 1%, 10px) var(--signal-mid, transparent);
+}
+
+/*
+ * Расходящиеся кольца — «энергия рассеивается наружу», а не «вспышка
+ * висит пятном, пока не погаснет». Родившись маленькими у центра
+ * вспышки, каждое кольцо расширяется и растворяется (scale + opacity):
+ * transform-масштаб заодно утончает саму обводку по мере роста — эффект
+ * «даром», без покадровой анимации border-width. Два кольца со сдвигом
+ * по времени (см. animation-delay ниже) дают опережающий и вторичный
+ * фронт волны — «продвинутая» анимация вместо одного статичного пятна,
+ * при этом ключевой сигнал для реакции — белая точка-ядро (::before) —
+ * не зависит от колец и читается ничуть не медленнее.
+ */
+.signal-ring {
+  position: absolute;
+  top: 44%;
+  left: 47%;
+  width: 14%;
+  height: 14%;
+  margin: -7% 0 0 -7%;
+  border-radius: 50%;
+  border: 1.5px solid var(--signal-mid, transparent);
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.signal-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  /* Ядро — тот же белый раскал в центре (быстрая фаза, см. keyframes
+     ниже), чуть шире тела снаружи. Без него вспышка «зажигалась» бы с
+     цветного пятна, а не с яркой белой точки, как в референсе.
+     closest-side — по той же причине, что и у тела выше (см. .signal-overlay):
+     без него % считается от дальнего угла, а не от края доски. */
+  background: radial-gradient(
+    circle closest-side at 47% 44%,
+    #fff 0%,
+    var(--signal-core, transparent) 20%,
+    transparent 40%
+  );
+}
+
+.signal-overlay.signal-pulse {
+  animation: signal-halo var(--signal-duration, 250ms) cubic-bezier(0.16, 0.7, 0.3, 1) 1;
+}
+
+.signal-overlay.signal-pulse::before {
+  animation: signal-core var(--signal-duration, 250ms) cubic-bezier(0.16, 0.7, 0.3, 1) 1;
+}
+
+/*
+ * Кольца запускаются тем же классом на родителе, что и сама вспышка —
+ * растягиваем длительность (1.65×/2.1× от общей) и стартуем со сдвигом,
+ * чтобы фронт волны заметно ОБГОНЯЛ угасание тела: кольца — это то, что
+ * дольше всего остаётся на экране, дочитывая вспышку до конца, а не
+ * гаснущее одновременно с ней statичное пятно.
+ */
+.signal-overlay.signal-pulse .signal-ring--1 {
+  animation: signal-ring-expand calc(var(--signal-duration, 250ms) * 1.65) cubic-bezier(0.1, 0.6, 0.35, 1) 1;
+}
+
+.signal-overlay.signal-pulse .signal-ring--2 {
+  animation: signal-ring-expand calc(var(--signal-duration, 250ms) * 2.1) cubic-bezier(0.1, 0.6, 0.35, 1) 1;
+  animation-delay: calc(var(--signal-duration, 250ms) * 0.22);
+}
+
+/* Тело: компактное пятно (см. background выше) вместо заливки всей
+   доски — пик приглушён с полной непрозрачности до 0.62, чтобы вспышка
+   читалась ярким акцентом, а не «прожектором в лицо». */
+@keyframes signal-halo {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  16% {
+    opacity: 0.62;
+    transform: scale(1.03);
+  }
+  55% {
+    opacity: 0.48;
+    transform: scale(1.01);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Ядро: вспыхивает почти мгновенно и держит яркость дольше тела — тот
+   самый быстрый и чистый «пик», по которому сигнал читается мгновенно.
+   Пик слегка приглушён (было 1 → 0.88) вслед за общим смягчением. */
+@keyframes signal-core {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.88;
+  }
+  50% {
+    opacity: 0.78;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Расходящееся кольцо: рождается маленьким и почти непрозрачным у
+   самого центра, растёт и растворяется. Масштаб заодно утончает саму
+   линию обводки по мере роста — «дисперсия» без лишних свойств в
+   анимации (border-width не трогаем, только transform + opacity —
+   GPU-friendly, никакого layout на каждый кадр). */
+@keyframes signal-ring-expand {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.35);
+  }
+  70% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-overlay.signal-pulse,
+  .signal-overlay.signal-pulse::before,
+  .signal-overlay.signal-pulse .signal-ring--1,
+  .signal-overlay.signal-pulse .signal-ring--2 {
+    animation: none;
+  }
+  .signal-overlay.signal-pulse {
+    opacity: 0.8;
+  }
+  .signal-overlay.signal-pulse::before {
+    opacity: 0.9;
+  }
+}
+
