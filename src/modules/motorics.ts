@@ -1,5 +1,6 @@
 import type { Key } from 'chessground/types';
 import type { AppContext, Unmount } from '../main';
+import { MAX_FIRE_PARTICLES, traceFireAnchors } from './motorics-fire';
 import { Board } from '../board/board';
 import { el, metric, metrics, panel, segmented, statLine, table } from '../core/ui';
 import { Session, consumePlanNavigation, markPlanNavigation, measuredCalibration } from '../core/session';
@@ -178,6 +179,27 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   const traceLine = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   traceLine.setAttribute('class', 'hl-trace-line');
   trace.append(traceEmber, traceLine);
+  const fire = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  fire.setAttribute('class', 'hl-trace-fire');
+  const fireParticles = Array.from({ length: MAX_FIRE_PARTICLES }, (_, i) => {
+    const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const spark = i % 3 === 2;
+    const particle = document.createElementNS('http://www.w3.org/2000/svg', spark ? 'circle' : 'path');
+    particle.setAttribute('class', spark ? 'hl-trace-spark' : 'hl-trace-flame');
+    if (spark) {
+      particle.setAttribute('r', String(0.8 + (i % 2) * 0.4));
+      particle.setAttribute('cy', String(-8 - i % 5));
+    } else {
+      particle.setAttribute('d', 'M-2 0 C-5-3-1-6-1-9 C0-6 4-5 3-2 C2 0 0 1-2 0Z');
+    }
+    particle.style.animationDelay = `${-i * 0.173}s`;
+    particle.style.animationDuration = `${1.1 + (i % 5) * 0.19}s`;
+    anchor.setAttribute('display', 'none');
+    anchor.append(particle);
+    fire.append(anchor);
+    return anchor;
+  });
+  trace.append(fire);
 
   const board = new Board(boardHost, {
     orientation: 'white',
@@ -271,6 +293,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   function clearTrace(): void {
     traceEmber.removeAttribute('points');
     traceLine.removeAttribute('points');
+    for (const particle of fireParticles) particle.setAttribute('display', 'none');
   }
 
   function drawTrace(): void {
@@ -282,6 +305,15 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     const points = samples.map((s) => `${s.x - rect.left},${s.y - rect.top}`).join(' ');
     traceEmber.setAttribute('points', points);
     traceLine.setAttribute('points', points);
+    const anchors = traceFireAnchors(samples);
+    for (const [i, particle] of fireParticles.entries()) {
+      const anchor = anchors[i];
+      if (!anchor) { particle.setAttribute('display', 'none'); continue; }
+      const scale = (1 - i / MAX_FIRE_PARTICLES * 0.45) * (0.75 + ((i * 7) % 11) / 20);
+      const side = i % 2 === 0 ? 1 : -1;
+      particle.setAttribute('transform', `translate(${anchor.x - rect.left} ${anchor.y - rect.top}) rotate(${anchor.angle}) scale(${scale} ${scale * side})`);
+      particle.removeAttribute('display');
+    }
   }
 
   function nextRep(): void {

@@ -262,9 +262,44 @@ cg-board {
   76% { opacity: 0.8; }
 }
 
+.hl-trace-fire {
+  filter: drop-shadow(0 0 2px rgba(255, 100, 0, 0.75));
+}
+
+.hl-trace-flame {
+  fill: #ff7918;
+  stroke: #ffce74;
+  stroke-width: 0.45;
+  opacity: 0.75;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: trace-flame-lick 1.4s ease-in-out infinite;
+}
+
+.hl-trace-spark {
+  fill: #ffc15b;
+  opacity: 0.7;
+  animation: trace-spark-drift 1.6s ease-out infinite;
+}
+
+@keyframes trace-flame-lick {
+  0%, 100% { transform: scale(0.8, 0.65) rotate(-8deg); opacity: 0.4; }
+  32% { transform: scale(0.95, 1.15) rotate(9deg); opacity: 0.9; }
+  61% { transform: scale(0.75, 0.8) rotate(-5deg); opacity: 0.55; }
+  80% { transform: scale(1, 1.05) rotate(4deg); opacity: 0.8; }
+}
+
+@keyframes trace-spark-drift {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { transform: translate(3px, -7px); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hl-trace-line[points],
-  .hl-trace-ember[points] {
+  .hl-trace-ember[points],
+  .hl-trace-flame,
+  .hl-trace-spark {
     animation: none;
   }
 }
