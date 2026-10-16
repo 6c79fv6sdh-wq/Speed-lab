@@ -311,11 +311,6 @@ async function boot(): Promise<void> {
   show(ALL_TABS.some((t) => t.id === initial) ? initial : 'today');
 }
 
-// Метка сборки нужна и на витрине, а не только внутри приложения: по ней
-// сразу видно, доехала ли новая версия, или браузер держит старую из кеша.
-const buildEl = document.getElementById('build-id');
-if (buildEl) buildEl.textContent = `сборка ${__BUILD_ID__}`;
-
 // Слушаем обновление service worker'а СРАЗУ: пока показана витрина Lab,
 // страница работает на старом закешированном JS (там же старый
 // WORKER_URL/PUBLIC_KEY_JWK, если их когда-нибудь поменяют). Без этого

@@ -102,3 +102,7 @@ export function table(headers: string[], rows: string[][]): HTMLElement {
   const wrap = el('div', { class: 'tbl-wrap', tabindex: '0', role: 'region', 'aria-label': headers.join(', ') }, [t]);
   return wrap;
 }
+
+export function disclosure(title: string, children: Array<Node | string>): HTMLDetailsElement {
+  return el('details', { class: 'details-panel' }, [el('summary', {}, [title]), ...children]);
+}

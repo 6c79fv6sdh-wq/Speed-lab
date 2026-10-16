@@ -1,6 +1,6 @@
 import type { AppContext, Unmount } from '../main';
 import { Board } from '../board/board';
-import { el, panel, segmented, statLine } from '../core/ui';
+import { disclosure, el, panel, segmented, statLine } from '../core/ui';
 import { Session, consumePlanNavigation, markPlanNavigation, measuredCalibration } from '../core/session';
 import { fmtMs, median, p90 } from '../core/stats';
 import { Clocks, OUTCOME_LABELS, botDelay, chooseMove, formatClock, type Outcome } from './scramble-logic';
@@ -411,9 +411,9 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
     liveStats.append(
       statLine([
         ['Своих ходов', String(userMoveTimes.length)],
-        ['Медиана на ход', fmtMs(median(userMoveTimes))],
-        ['P90 на ход', fmtMs(p90(userMoveTimes))],
+        ['Время на ход', fmtMs(median(userMoveTimes))],
       ]),
+      disclosure('Подробная статистика', [statLine([['P90 на ход', fmtMs(p90(userMoveTimes))]])]),
     );
   }
 

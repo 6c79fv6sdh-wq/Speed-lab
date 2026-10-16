@@ -1,3 +1,4 @@
+import { mountDataSettings } from './settings-data';
 import { reportStorageError } from '../core/storage-error';
 import type { AppContext, MountFn, Unmount } from '../main';
 import { Board } from '../board/board';
@@ -10,7 +11,7 @@ import {
   type DeviceProfile,
   clampBoardSize,
 } from '../core/settings';
-import { el, panel, segmented } from '../core/ui';
+import { disclosure, el, panel, segmented } from '../core/ui';
 import { applyTheme, BOARD_THEMES, PIECE_SETS, pieceSet } from '../board/theme';
 import {
   INITIAL_FEN,
@@ -52,9 +53,7 @@ function mountCalibrationView(
   if (opts.firstRun) {
     root.append(
       el('p', { class: 'setup-lead' }, [
-        'Займёт минуту. Эти значения пишутся в каждый замер, поэтому важно ',
-        'выставить их один раз до начала — иначе результаты с разных настроек ',
-        'смешаются между собой.',
+        'Займёт минуту.',
       ]),
     );
   }
@@ -105,7 +104,7 @@ function mountCalibrationView(
     const capped = board.size < cal.boardSize;
     sizeOut.textContent = `${board.size} px`;
     sizeNote.textContent = capped
-      ? `Выбрано ${cal.boardSize} px, но на этом экране помещается ${board.size} px — доска ужата. В замеры пишется фактический размер.`
+      ? `Выбрано ${cal.boardSize} px, но на этом экране помещается ${board.size} px — доска ужата.`
       : '';
   }
 
@@ -301,13 +300,31 @@ function mountCalibrationView(
       sizeNote,
       el('div', { class: 'row' }, [el('label', {}, ['Способ ввода']), inputSeg.root]),
       el('div', { class: 'row' }, [el('label', {}, ['Координаты по краям']), coordsCb]),
-      el('div', { class: 'row' }, [el('label', {}, ['Профиль устройства']), profileSeg.root]),
-      el('div', { class: 'col' }, [el('label', {}, ['Метка настроек указателя']), pointerInput]),
-      el('p', { class: 'hint' }, [
-        'Эти значения записываются в каждый замер всех модулей, чтобы результаты разных настроек не смешивались.',
+      disclosure('Дополнительные настройки', [
+        el('div', { class: 'row' }, [el('label', {}, ['Профиль устройства']), profileSeg.root]),
+        el('div', { class: 'col' }, [el('label', {}, ['Метка настроек указателя']), pointerInput]),
       ]),
     ]),
   );
+
+  let unmountDataSettings: Unmount = () => {};
+  if (!opts.firstRun) {
+    const dataHost = el('div');
+    root.append(dataHost, panel('О приложении', [el('p', {}, [`ScienceChess Lab · сборка ${__BUILD_ID__}`])]));
+    unmountDataSettings = mountDataSettings(dataHost, ctx, () => {
+      Object.assign(cal, ctx.calibration);
+      board.setOptions({ size: cal.boardSize, inputMode: cal.inputMode, coordinates: cal.coordinates });
+      syncSizeBounds();
+      showSize();
+      inputSeg.set(cal.inputMode);
+      coordsCb.checked = cal.coordinates;
+      profileSeg.set(cal.deviceProfile);
+      pointerInput.value = cal.pointerLabel;
+      themeSeg.set(cal.boardTheme);
+      pieceSeg.set(cal.pieceSet);
+      creditEl.textContent = pieceSet(cal.pieceSet).credit;
+    });
+  }
 
   if (opts.firstRun) {
     // Настройки сохраняются по ходу правки, так что кнопка только уводит
@@ -322,6 +339,7 @@ function mountCalibrationView(
   }
 
   return () => {
+    unmountDataSettings();
     cancelAnimationFrame(firstSync);
     window.removeEventListener('resize', onViewport);
     window.removeEventListener('orientationchange', onViewport);

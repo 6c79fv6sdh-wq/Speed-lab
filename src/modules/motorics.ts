@@ -2,7 +2,7 @@ import type { Key } from 'chessground/types';
 import type { AppContext, Unmount } from '../main';
 import { MAX_FIRE_PARTICLES, traceFireAnchors } from './motorics-fire';
 import { Board } from '../board/board';
-import { el, metric, metrics, panel, segmented, statLine, table } from '../core/ui';
+import { disclosure, el, metric, metrics, panel, segmented, statLine, table } from '../core/ui';
 import { Session, consumePlanNavigation, markPlanNavigation, measuredCalibration } from '../core/session';
 import { fmtMs, fmtNum, fmtPct, fmtSec, groupBy, median, p90, plural } from '../core/stats';
 import { directionBetween, squareDistance, type Direction } from '../core/chess';
@@ -531,12 +531,12 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       fmtPct(rs.filter((r) => r.misses === 0).length / rs.length),
     ]);
 
-    resultsHost.append(
+    resultsHost.append(disclosure('Подробная статистика', [
       el('h3', {}, ['По расстоянию в клетках']),
       table(['Клеток', 'N', 'Медиана', 'P90', 'Эффект.', 'Коррекций'], distRows),
       el('h3', {}, ['По направлению']),
       table(['Направление', 'N', 'Медиана', 'P90', 'Без промахов'], dirRows),
-    );
+    ]));
   }
 
   const startBtn = el('button', { class: 'btn primary', type: 'button' }, ['Старт']);
@@ -722,9 +722,8 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
 
     sigResultsHost.append(
       statLine([
-        ['Медиана реакции', fmtMs(median(rts))],
+        ['Время реакции', fmtMs(median(rts))],
         ['Лучшая реакция', fmtMs(bestMs)],
-        ['P90', fmtMs(p90(rts))],
         ['Точные реакции', String(signalCountBy(sigTrials, 'hit'))],
         ['Ложные тревоги', String(signalCountBy(sigTrials, 'falseAlarm'))],
         ['Фальстарты', String(signalCountBy(sigTrials, 'falseStart'))],
@@ -732,6 +731,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
         ['Точность', signalAccuracy(sigTrials) === null ? '—' : fmtPct(signalAccuracy(sigTrials))],
         ['Личный рекорд', pb === null ? '—' : `${fmtMs(pb)}${isNewPB ? ' — новый!' : ''}`],
       ]),
+      disclosure('Подробная статистика', [statLine([['P90', fmtMs(p90(rts))]])]),
     );
   }
 

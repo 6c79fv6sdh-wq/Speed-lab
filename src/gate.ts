@@ -37,7 +37,7 @@ const SLIDES: Slide[] = [
   {
     src: './showcase/openings.webp',
     title: 'Дебюты',
-    caption: 'Репертуар по узлам: где ход находится сразу, а где идёт заминка.',
+    caption: 'Репертуар: где ход находится сразу, а где идёт заминка.',
   },
   {
     src: './showcase/scramble.webp',
@@ -323,7 +323,7 @@ interface DemoMetric {
 }
 
 const DEMO_METRICS: DemoMetric[] = [
-  { label: 'Время решения', value: '640 мс', note: 'медиана попыток' },
+  { label: 'Время решения', value: '640 мс', note: '' },
   { label: 'Точность', value: '92%', note: 'верных решений из всех' },
   { label: 'Динамика', value: '−18%', note: 'время решения за месяц' },
 ];

@@ -57,7 +57,7 @@ const ROTATION: PlanStep[] = [
   {
     module: 'openings',
     label: 'Дебюты',
-    detail: 'Репертуар без заминок на знакомых узлах',
+    detail: 'Репертуар без заминок на знакомых ходах',
     tab: 'openings',
   },
   {

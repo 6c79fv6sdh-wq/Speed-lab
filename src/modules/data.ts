@@ -1,17 +1,10 @@
-import { MAX_BACKUP_BYTES } from '../core/backup';
 import type { AppContext, Unmount } from '../main';
-import { el, panel, table } from '../core/ui';
+import { disclosure, el, panel, table } from '../core/ui';
 import { fmtMs, fmtNum, fmtPct } from '../core/stats';
 import {
   allMeasurements,
   allOpeningNodes,
   allSessions,
-  clearMeasurements,
-  exportBundle,
-  importBundle,
-  parseBundle,
-  requestPersistentStorage,
-  storageStatus,
   type MeasurementRecord,
   type ModuleId,
   type OpeningNodeStat,
@@ -26,40 +19,46 @@ import {
   type SummaryRow,
 } from './data-summary';
 import { REPERTOIRES } from '../data/repertoire';
+import { PREMOVE_MODE_LABELS } from '../data/premove-positions';
 
-function summaryTable(rows: SummaryRow[], firstHeader: string): HTMLElement {
+function sessionModeLabel(session: SessionRecord): string {
+  const mode = session.mode.split(':')[0];
+  const labels: Record<string, string> = {
+    'source-target': 'Вектор', signal: 'Сигнал',
+    ...PREMOVE_MODE_LABELS,
+    'free-capture': 'Что висит?', 'mate-in-1': 'Мат в 1', 'safe-check': 'Шах',
+    'delta-from': 'Откуда', 'delta-to': 'Куда', 'knight-scan': 'Скан конём', snapshot: 'Snapshot',
+  };
+  if (mode.startsWith('route-')) return 'Маршрут';
+  return labels[mode] ?? REPERTOIRES.find(r => r.id === session.mode)?.label ?? MODULE_LABELS[session.module];
+}
+
+function summaryTable(rows: SummaryRow[], firstHeader: string, detailed = true): HTMLElement {
   return table(
-    [firstHeader, 'Попыток', 'Медиана', 'P90', 'Точность'],
+    [firstHeader, 'Попыток', detailed ? 'Медиана' : 'Время', ...(detailed ? ['P90'] : []), 'Точность'],
     rows.map((r) => [
       r.key,
       String(r.attempts),
       fmtMs(r.medianMs),
-      fmtMs(r.p90Ms),
+      ...(detailed ? [fmtMs(r.p90Ms)] : []),
       r.accuracy === null ? '—' : fmtPct(r.accuracy),
     ]),
   );
 }
 
-export function mountData(root: HTMLElement, ctx: AppContext): Unmount {
+export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
   let disposed = false;
   root.append(el('h1', {}, ['Прогресс']));
 
   const overviewHost = el('div', {});
-  const storageHost = el('div', {});
+  const detailedOverviewHost = el('div', {});
   const perModuleHost = el('div', {});
   const motoricsHost = el('div', {});
   const openingsHost = el('div', {});
   const sessionsHost = el('div', {});
-  const ioStatus = el('div', { class: 'prompt' }, ['']);
-  const jsonArea = el('textarea', {
-    placeholder: 'Сюда попадает экспорт. Сюда же можно вставить JSON для импорта.',
-    'aria-label': 'Резервная копия истории в JSON',
-  }) as HTMLTextAreaElement;
-
+  const errorHost = el('p', { role: 'alert' });
   function showError(error: unknown): void {
-    if (disposed) return;
-    ioStatus.textContent = `Не удалось выполнить действие: ${error instanceof Error ? error.message : String(error)}`;
-    ioStatus.className = 'prompt verdict-bad';
+    if (!disposed) errorHost.textContent = error instanceof Error ? error.message : String(error);
   }
 
   async function render(): Promise<void> {
@@ -70,50 +69,18 @@ export function mountData(root: HTMLElement, ctx: AppContext): Unmount {
     ]);
     if (disposed) return;
     renderOverview(measurements);
-    void renderStorage().catch(showError);
+
     renderPerModule(measurements);
     renderMotorics(measurements);
     renderOpenings(nodes);
     renderSessions(sessions);
   }
 
-  async function renderStorage(): Promise<void> {
-    const st = await storageStatus();
-    if (disposed) return;
-    const mb = (v: number | null) => (v === null ? '—' : `${(v / 1024 / 1024).toFixed(1)} МБ`);
-    storageHost.innerHTML = '';
-    storageHost.append(
-      el('div', { class: 'stats' }, [
-        el('div', { class: 'stat' }, [
-          el('span', { class: 'stat-k' }, ['Постоянное хранение']),
-          el('span', { class: 'stat-v' }, [
-            !st.supported ? 'не поддерживается' : st.persistent ? 'включено' : 'выключено',
-          ]),
-        ]),
-        el('div', { class: 'stat' }, [
-          el('span', { class: 'stat-k' }, ['Занято']),
-          el('span', { class: 'stat-v' }, [mb(st.usageBytes)]),
-        ]),
-      ]),
-    );
-    if (st.supported && !st.persistent) {
-      const ask = el('button', { class: 'btn', type: 'button' }, ['Запросить постоянное хранение']);
-      ask.addEventListener('click', () => {
-        void requestPersistentStorage().then(() => renderStorage()).catch(showError);
-      });
-      storageHost.append(
-        ask,
-        el('p', { class: 'hint' }, [
-          'Браузер может удалить локальную историю. Скачивай резервную копию, особенно перед сменой устройства или адреса сайта.',
-        ]),
-      );
-    }
-  }
-
   function renderOverview(measurements: MeasurementRecord[]): void {
     overviewHost.innerHTML = '';
     const rows = summarizeAll(measurements);
-    overviewHost.append(summaryTable(rows, 'Модуль'));
+    overviewHost.append(summaryTable(rows, 'Модуль', false));
+    detailedOverviewHost.replaceChildren(summaryTable(rows, 'Модуль'));
     if (!rows.length) {
       overviewHost.append(el('p', { class: 'hint' }, ['Замеров пока нет. Пройди любую сессию.']));
     }
@@ -185,124 +152,24 @@ export function mountData(root: HTMLElement, ctx: AppContext): Unmount {
       .map((s) => [
         new Date(s.startedAt).toLocaleString('ru-RU'),
         MODULE_LABELS[s.module] ?? s.module,
-        s.mode,
+        sessionModeLabel(s),
         String(s.summary.reps ?? s.summary.attempts ?? s.summary.nodes ?? s.summary.moves ?? '—'),
         String(s.summary.outcomeLabel ?? ''),
       ]);
     sessionsHost.append(table(['Начало', 'Модуль', 'Режим', 'Замеров', 'Исход'], rows));
   }
 
-  // --- Экспорт и импорт.
-  const exportBtn = el('button', { class: 'btn', type: 'button' }, ['Экспорт в поле']);
-  exportBtn.addEventListener('click', () => {
-    void (async () => {
-      const bundle = await exportBundle();
-      jsonArea.value = JSON.stringify(bundle, null, 2);
-      ioStatus.textContent = `Выгружено: сессий ${bundle.sessions.length}, замеров ${bundle.measurements.length}, партий ${bundle.games.length}.`;
-      ioStatus.className = 'prompt verdict-ok';
-    })().catch(showError);
-  });
-
-  const downloadBtn = el('button', { class: 'btn', type: 'button' }, ['Скачать файл']);
-  downloadBtn.addEventListener('click', () => {
-    void (async () => {
-      const bundle = await exportBundle();
-      const text = JSON.stringify(bundle, null, 2);
-      jsonArea.value = text;
-      const blob = new Blob([text], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = el('a', { href: url, download: `hyperlab-${new Date().toISOString().slice(0, 10)}.json` });
-      document.body.append(a);
-      a.click();
-      a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      ioStatus.textContent = 'Файл отдан браузеру.';
-      ioStatus.className = 'prompt verdict-ok';
-    })().catch(showError);
-  });
-
-  const importAreaBtn = el('button', { class: 'btn primary', type: 'button' }, ['Импорт из поля']);
-  importAreaBtn.addEventListener('click', () => {
-    void doImport(jsonArea.value);
-  });
-
-  const fileInput = el('input', { type: 'file', accept: 'application/json,.json' }) as HTMLInputElement;
-  fileInput.style.display = 'none';
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-    if (file.size > MAX_BACKUP_BYTES) {
-      showError(new Error('Файл больше 30 МБ'));
-      fileInput.value = '';
-      return;
-    }
-    void file.text().then((text) => {
-      if (disposed) return;
-      jsonArea.value = text;
-      return doImport(text);
-    }).catch(showError);
-    fileInput.value = '';
-  });
-
-  const importFileBtn = el('button', { class: 'btn', type: 'button' }, ['Импорт из файла']);
-  importFileBtn.addEventListener('click', () => fileInput.click());
-
-  async function doImport(text: string): Promise<void> {
-    try {
-      const bundle = parseBundle(text);
-      const res = await importBundle(bundle);
-      await ctx.setCalibration(bundle.calibration, false);
-      ioStatus.textContent = `В твой профиль импортировано: сессий ${res.sessions}, замеров ${res.measurements}, узлов ${res.openingNodes}, партий ${res.games}. Настройки применены.`;
-      ioStatus.className = 'prompt verdict-ok';
-      await render();
-    } catch (e) {
-      ioStatus.textContent = `Импорт не прошёл: ${(e as Error).message}`;
-      ioStatus.className = 'prompt verdict-bad';
-    }
-  }
-
-  const clearBtn = el('button', { class: 'btn danger', type: 'button' }, ['Очистить измерения']);
-  let armed = false;
-  clearBtn.addEventListener('click', () => {
-    if (!armed) {
-      armed = true;
-      clearBtn.textContent = 'Точно очистить? Нажми ещё раз';
-      window.setTimeout(() => {
-        armed = false;
-        clearBtn.textContent = 'Очистить измерения';
-      }, 4000);
-      return;
-    }
-    void (async () => {
-      await clearMeasurements();
-      armed = false;
-      clearBtn.textContent = 'Очистить измерения';
-      ioStatus.textContent = 'Измерения удалены. Настройки калибровки сохранены.';
-      ioStatus.className = 'prompt verdict-ok';
-      await render();
-    })().catch(showError);
-  });
-
   root.append(
-    panel('Хранение на этом устройстве', [storageHost]),
+    errorHost,
     panel('Сводка по модулям', [overviewHost]),
-    panel('По режимам', [perModuleHost]),
-    panel('Моторика в разрезах', [motoricsHost]),
-    panel('Дебюты: самые медленные узлы', [openingsHost]),
     panel('Последние сессии', [sessionsHost]),
-    panel('Экспорт и импорт', [
-      el('div', { class: 'row' }, [exportBtn, downloadBtn, importAreaBtn, importFileBtn, fileInput]),
-      jsonArea,
-      ioStatus,
-      el('div', { class: 'row' }, [clearBtn]),
-      el('p', { class: 'hint' }, [
-        'Копия включает историю и партии текущего профиля. Импорт переносит её в твой активный профиль и применяет настройки из файла. ',
-        'Очистка удаляет сессии, замеры и статистику дебютных узлов. Настройки калибровки остаются.',
-      ]),
+    disclosure('Подробная статистика', [
+      panel('Сводка по модулям', [detailedOverviewHost]),
+      panel('По режимам', [perModuleHost]),
+      panel('Моторика в разрезах', [motoricsHost]),
+      panel('Дебюты: самые медленные узлы', [openingsHost]),
     ]),
   );
-
   void render().catch(showError);
-
   return () => { disposed = true; };
 }

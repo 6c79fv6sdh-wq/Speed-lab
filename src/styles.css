@@ -174,13 +174,6 @@ body {
   opacity: 0.6;
 }
 
-/* Хеш сборки набираем как есть: капитель мешает его сверять. */
-.credit-build {
-  text-transform: none;
-  letter-spacing: 0.04em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
-}
 
 /*
  * Двухуровневая навигация.
@@ -2362,3 +2355,7 @@ code {
 }
 
 #storage-error { position: sticky; bottom: 0; z-index: 100; padding: 16px; background: #3c1717; color: #fff; display: flex; gap: 12px; flex-wrap: wrap; border: 1px solid #dc8585; }
+
+.details-panel { margin: 16px 0; }
+.details-panel > summary { cursor: pointer; padding: 12px 0; color: var(--fg-strong); }
+.details-panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

@@ -1,6 +1,6 @@
 import type { AppContext, Unmount } from '../main';
 import { Board } from '../board/board';
-import { el, metric, metrics, panel, segmented, table } from '../core/ui';
+import { disclosure, el, metric, metrics, panel, segmented, table } from '../core/ui';
 import { Session, consumePlanNavigation, markPlanNavigation, measuredCalibration } from '../core/session';
 import { allSessions } from '../core/db';
 import { fmtMs, fmtPct, fmtSec, median, p90, plural } from '../core/stats';
@@ -850,20 +850,22 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     ksResultsHost.append(
       metrics([
         metric('Точность', fmtPct(num(summary.accuracy)), compare(num(summary.accuracy), prevAcc, fmtPct)),
-        metric('Медиана', fmtMs(num(summary.medianMs)), compare(num(summary.medianMs), prevMed, fmtMs)),
-        metric('P90', fmtMs(num(summary.p90Ms))),
+        metric('Время ответа', fmtMs(num(summary.medianMs)), compare(num(summary.medianMs), prevMed, fmtMs)),
       ]),
       el('p', { class: 'hint metrics-note' }, [
         `${errors} ${plural(errors, ['ошибка', 'ошибки', 'ошибок'])} из ${KNIGHT_SCAN_SCORED}`,
       ]),
-      table(
-        ['Сложность', 'Точность', 'Медиана'],
-        ([2, 3, 4] as KnightScanLevel[]).map((lvl) => [
-          `N = ${lvl}`,
-          fmtPct(num(summary[`accuracyN${lvl}`])),
-          fmtMs(num(summary[`medianN${lvl}`])),
-        ]),
-      ),
+      disclosure('Подробная статистика', [
+        metrics([metric('P90', fmtMs(num(summary.p90Ms)))]),
+        table(
+          ['Сложность', 'Точность', 'Медиана'],
+          ([2, 3, 4] as KnightScanLevel[]).map((lvl) => [
+            `N = ${lvl}`,
+            fmtPct(num(summary[`accuracyN${lvl}`])),
+            fmtMs(num(summary[`medianN${lvl}`])),
+          ]),
+        ),
+      ]),
     );
   }
 
@@ -1216,8 +1218,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   const snTitleEl = el('div', { class: 'ks-title' }, ['Snapshot']);
   const snIdleHint = el('p', { class: 'hint' }, [
     'Позиция показывается ненадолго, потом несколько фигур исчезают — верни их на верные клетки ',
-    'по перемешанной панели снизу. Часть позиций — из реальных партий, часть — контрольные с той же ',
-    'расстановкой фигур в случайном порядке; какая есть какая, не сообщается.',
+    'по перемешанной панели снизу.',
   ]);
   const snCounterEl = el('div', { class: 'ks-counter hint' }, ['']);
   const snPromptEl = el('div', { class: 'prompt' }, ['']);
@@ -1308,7 +1309,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     session = null;
     const finishedAttempts = snAttempts;
     snSession = null;
-    await renderSnResults(summary, finishedId);
+    await renderSnResults(summary, finishedId, finishedAttempts);
     renderSnErrorReview(finishedAttempts);
     renderSnVisibility();
     renderPlanNext();
@@ -1318,6 +1319,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   async function renderSnResults(
     summary: Record<string, number | string | null>,
     finishedId: string | null,
+    attempts: SnAttemptRecord[],
   ): Promise<void> {
     snResultsHost.innerHTML = '';
     const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
@@ -1335,29 +1337,34 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     };
 
     const edge = num(summary.structuralEdgePp);
+    const correctPieces = attempts.reduce((sum, attempt) => sum + attempt.summary.fullyCorrect, 0);
+    const totalPieces = attempts.reduce((sum, attempt) => sum + attempt.summary.total, 0);
     snResultsHost.append(
-      metrics([
-        metric('Игровые позиции', fmtPct(num(summary.meaningfulAccuracy)), compare(num(summary.meaningfulAccuracy), 'meaningfulAccuracy', fmtPct)),
-        metric('Перемешанные', fmtPct(num(summary.controlAccuracy)), compare(num(summary.controlAccuracy), 'controlAccuracy', fmtPct)),
-        metric('Структурное преимущество', edge === null ? '—' : `${edge >= 0 ? '+' : ''}${edge.toFixed(0)} п.п.`),
-      ]),
-      el('p', { class: 'hint metrics-note' }, [
-        // «Структурное преимущество» — это точность на реальных позициях
-        // минус точность на перемешанных, в процентных пунктах. Не IQ,
-        // не «память» вообще — только про то, помогает ли шахматная
-        // структура запоминать быстрее случайного набора тех же фигур.
-        'Структурное преимущество — насколько точнее держится в памяти настоящая структура партии по сравнению с тем же набором фигур вперемешку.',
-      ]),
-      table(
-        ['Сложность', 'Точность'],
-        (['easy', 'medium', 'hard'] as SnapshotDifficulty[]).map((d) => [
-          d === 'easy' ? 'Лёгкая' : d === 'medium' ? 'Средняя' : 'Сложная',
-          fmtPct(num(summary[`accuracy${d[0].toUpperCase()}${d.slice(1)}`])),
+      metrics([metric('Правильно восстановлено фигур', `${correctPieces} из ${totalPieces}`)]),
+      disclosure('Подробная статистика', [
+        metrics([
+          metric('Игровые позиции', fmtPct(num(summary.meaningfulAccuracy)), compare(num(summary.meaningfulAccuracy), 'meaningfulAccuracy', fmtPct)),
+          metric('Перемешанные', fmtPct(num(summary.controlAccuracy)), compare(num(summary.controlAccuracy), 'controlAccuracy', fmtPct)),
+          metric('Структурное преимущество', edge === null ? '—' : `${edge >= 0 ? '+' : ''}${edge.toFixed(0)} п.п.`),
         ]),
-      ),
-      metrics([
-        metric('Средняя ошибка расстояния', num(summary.meanErrorDistance) === null ? '—' : `${num(summary.meanErrorDistance)!.toFixed(1)} кл.`),
-        metric('Медиана восстановления', fmtMs(num(summary.medianRecallMs))),
+        el('p', { class: 'hint metrics-note' }, [
+          // «Структурное преимущество» — это точность на реальных позициях
+          // минус точность на перемешанных, в процентных пунктах. Не IQ,
+          // не «память» вообще — только про то, помогает ли шахматная
+          // структура запоминать быстрее случайного набора тех же фигур.
+          'Структурное преимущество — насколько точнее держится в памяти настоящая структура партии по сравнению с тем же набором фигур вперемешку.',
+        ]),
+        table(
+          ['Сложность', 'Точность'],
+          (['easy', 'medium', 'hard'] as SnapshotDifficulty[]).map((d) => [
+            d === 'easy' ? 'Лёгкая' : d === 'medium' ? 'Средняя' : 'Сложная',
+            fmtPct(num(summary[`accuracy${d[0].toUpperCase()}${d.slice(1)}`])),
+          ]),
+        ),
+        metrics([
+          metric('Средняя ошибка расстояния', num(summary.meanErrorDistance) === null ? '—' : `${num(summary.meanErrorDistance)!.toFixed(1)} кл.`),
+          metric('Медиана восстановления', fmtMs(num(summary.medianRecallMs))),
+        ]),
       ]),
     );
   }
@@ -1528,15 +1535,24 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     ksResultsHost,
   ]);
 
-  const timingControlsHost = el('div', {}, [
-    el('div', { class: 'row' }, [el('label', {}, ['Показ фигур']), exposureSeg.root]),
-    el('div', { class: 'row' }, [el('label', {}, ['Лимит времени']), timeLimitSeg.root]),
-    el('p', { class: 'hint' }, [
-      'Показ фигур — сколько времени видно позицию: после этого фигуры ',
-      'скрываются, и решение идёт по памяти. Лимит времени — сколько ',
+  const timingHelpButton = el('button', { type: 'button', class: 'btn', 'aria-expanded': 'false', 'aria-controls': 'reaction-timing-help' }, ['Как это работает']);
+  const timingHelp = el('p', { class: 'hint' }, [
+      'Сколько видна позиция — время показа: после этого фигуры ',
+      'скрываются, и решение идёт по памяти. Время на ответ — сколько ',
       'всего даётся на ответ: не успел, задание засчитывается как ',
       'несделанное. Настройки независимы.',
-    ]),
+    ]);
+  timingHelp.id = 'reaction-timing-help';
+  timingHelp.hidden = true;
+  timingHelpButton.addEventListener('click', () => {
+    timingHelp.hidden = !timingHelp.hidden;
+    timingHelpButton.setAttribute('aria-expanded', String(!timingHelp.hidden));
+  });
+  const timingControlsHost = el('div', {}, [
+    el('div', { class: 'row' }, [el('label', {}, ['Сколько видна позиция']), exposureSeg.root]),
+    el('div', { class: 'row' }, [el('label', {}, ['Время на ответ']), timeLimitSeg.root]),
+    timingHelpButton,
+    timingHelp,
   ]);
 
   root.append(

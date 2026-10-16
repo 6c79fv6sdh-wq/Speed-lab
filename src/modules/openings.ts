@@ -1,6 +1,6 @@
 import type { AppContext, Unmount } from '../main';
 import { Board } from '../board/board';
-import { el, metric, metrics, panel, segmented, table } from '../core/ui';
+import { disclosure, el, metric, metrics, panel, segmented, table } from '../core/ui';
 import { Session, consumePlanNavigation, markPlanNavigation, measuredCalibration } from '../core/session';
 import { fmtMs, fmtPct, fmtSec, median, p90, plural } from '../core/stats';
 import { getOpeningNodes, recordOpeningNode, type OpeningNodeStat } from '../core/db';
@@ -240,7 +240,7 @@ export function mountOpenings(root: HTMLElement, ctx: AppContext): Unmount {
         metric('Общее время', fmtSec(elapsedMs(), 1)),
       ]),
       el('p', { class: 'hint metrics-note' }, [
-        `${n} ${plural(n, ['узел', 'узла', 'узлов'])} · ` +
+        `${n} ${plural(n, ['ход', 'хода', 'ходов'])} · ` +
           `${missCount} ${plural(missCount, ['промах', 'промаха', 'промахов'])}`,
       ]),
     );
@@ -355,13 +355,13 @@ export function mountOpenings(root: HTMLElement, ctx: AppContext): Unmount {
           liveStats,
           el('div', { class: 'row' }, [startBtn, stopBtn]),
           el('p', { class: 'hint' }, [
-            'Пока ходит соперник, доска заблокирована. Узлы с задержкой выше полутора медиан выпадают чаще.',
+            'Сложные места будем повторять чаще.',
           ]),
           planNextHost,
         ]),
       ]),
     ]),
-    panel('Заминки этого репертуара', [hitchHost]),
+    disclosure('Подробная статистика', [panel('Заминки этого репертуара', [hitchHost])]),
   );
 
   pos = posFromFen(INITIAL_FEN);
