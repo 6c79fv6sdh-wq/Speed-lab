@@ -31,23 +31,12 @@ export interface PlacedPiece {
 
 export type SnapshotKind = 'meaningful' | 'control';
 
-/** Сколько фигур убирать и сколько показывать позицию — по уровню. */
-export interface DifficultySpec {
-  removeCount: number;
-  exposureMs: number;
-}
-export const SNAPSHOT_DIFFICULTY: Record<SnapshotDifficulty, DifficultySpec> = {
-  easy: { removeCount: 3, exposureMs: 2500 },
-  medium: { removeCount: 4, exposureMs: 1800 },
-  hard: { removeCount: 5, exposureMs: 1200 },
-};
+export type SnapshotLevel = 1 | 2 | 3 | 4 | 5;
+export const SNAPSHOT_LEVELS: readonly SnapshotLevel[] = [1, 2, 3, 4, 5];
+export const SNAPSHOT_EXPOSURE_MS = 3000;
 
-/** Пары по уровням в зачётной сессии — фиксированное распределение по ТЗ. */
-export const SNAPSHOT_PAIR_COUNTS: Record<SnapshotDifficulty, number> = {
-  easy: 4,
-  medium: 3,
-  hard: 1,
-};
+/** Source categories describe the existing pool, never the selected level. */
+export const SNAPSHOT_PAIR_COUNTS: Record<SnapshotDifficulty, number> = { easy: 4, medium: 3, hard: 1 };
 
 export const SNAPSHOT_WARMUP = 2;
 export const SNAPSHOT_SCORED_PAIRS = 8; // 4 + 3 + 1
@@ -58,6 +47,7 @@ export interface SnapshotTask {
   pairId: string;
   kind: SnapshotKind;
   difficulty: SnapshotDifficulty;
+  level: SnapshotLevel;
   /** Сторона, которой снизу расположена доска — сторона хода в позиции. */
   orientation: Color;
   /** Полная расстановка ДО исчезновения фигур. */
@@ -234,16 +224,10 @@ function pickSquareInQuadrant(quad: number, used: Set<Key>, rnd: () => number, i
 // --- Выбор исчезающих фигур.
 
 export function chooseRemoved(pieces: PlacedPiece[], count: number, rnd: () => number): PlacedPiece[] | null {
-  const candidates = pieces.filter((p) => p.role !== 'king');
+  if (!Number.isInteger(count) || count < 1 || count > 5) return null;
+  const candidates = [...new Map(pieces.map(piece => [piece.square, piece])).values()];
   if (candidates.length < count) return null;
-  for (let attempt = 0; attempt < 300; attempt++) {
-    const picked = shuffle(candidates, rnd).slice(0, count);
-    const hasPawn = picked.some((p) => p.role === 'pawn');
-    const hasNonPawn = picked.some((p) => p.role !== 'pawn');
-    const quadrants = new Set(picked.map((p) => quadrantOf(p.square)));
-    if (hasPawn && hasNonPawn && (picked.length < 2 || quadrants.size >= 2)) return picked;
-  }
-  return null;
+  return shuffle(candidates, rnd).slice(0, count);
 }
 
 /** Тот же набор цветов/типов исчезающих фигур для control-пары, что и у meaningful. */
@@ -277,16 +261,17 @@ function shuffle<T>(items: T[], rnd: () => number): T[] {
 
 export interface SnapshotSession {
   seed: number;
+  level: SnapshotLevel;
   tasks: SnapshotTask[]; // warmup (не в счёт) + зачётные, в порядке показа
 }
 
 function buildPair(
   meaningfulPos: MeaningfulPosition,
   rnd: () => number,
+  level: SnapshotLevel,
 ): { meaningfulTask: SnapshotTask; controlTask: SnapshotTask } | null {
-  const spec = SNAPSHOT_DIFFICULTY[meaningfulPos.difficulty];
   const meaningfulPieces = piecesFromFen(meaningfulPos.fen);
-  const removedMeaningful = chooseRemoved(meaningfulPieces, spec.removeCount, rnd);
+  const removedMeaningful = chooseRemoved(meaningfulPieces, level, rnd);
   if (!removedMeaningful) return null;
 
   const control = generateShuffledControl(meaningfulPieces, rnd);
@@ -300,10 +285,11 @@ function buildPair(
       pairId,
       kind: 'meaningful',
       difficulty: meaningfulPos.difficulty,
+      level,
       orientation: meaningfulPos.sideToMove,
       pieces: meaningfulPieces,
       removed: removedMeaningful,
-      exposureMs: spec.exposureMs,
+      exposureMs: SNAPSHOT_EXPOSURE_MS,
       warmup: false,
       meaningful: meaningfulPos,
     },
@@ -312,10 +298,11 @@ function buildPair(
       pairId,
       kind: 'control',
       difficulty: meaningfulPos.difficulty,
+      level,
       orientation: meaningfulPos.sideToMove,
       pieces: control.pieces,
       removed: removedControl,
-      exposureMs: spec.exposureMs,
+      exposureMs: SNAPSHOT_EXPOSURE_MS,
       warmup: false,
     },
   };
@@ -354,33 +341,41 @@ function interleave(tasks: SnapshotTask[], rnd: () => number): SnapshotTask[] {
   return shuffle(tasks, rnd);
 }
 
-export function generateSnapshotSession(rnd: () => number, seed: number): SnapshotSession | null {
-  const byDifficulty: Record<SnapshotDifficulty, MeaningfulPosition[]> = { easy: [], medium: [], hard: [] };
-  for (const p of SNAPSHOT_MEANINGFUL_POSITIONS) byDifficulty[p.difficulty].push(p);
-  for (const d of ['easy', 'medium', 'hard'] as SnapshotDifficulty[]) {
-    if (byDifficulty[d].length !== SNAPSHOT_PAIR_COUNTS[d]) return null;
+export function generateSnapshotSession(
+  rnd: () => number, seed: number, level: SnapshotLevel = 1,
+  positions: readonly MeaningfulPosition[] = SNAPSHOT_MEANINGFUL_POSITIONS,
+): SnapshotSession | null {
+  if (!SNAPSHOT_LEVELS.includes(level)) return null;
+  // The same source selection rules at every level; unsuitable positions are skipped.
+  const eligible = positions.filter(position => piecesFromFen(position.fen).length >= level);
+  const sources: MeaningfulPosition[] = [];
+  for (const difficulty of ['easy', 'medium', 'hard'] as SnapshotDifficulty[]) {
+    const pool = eligible.filter(position => position.difficulty === difficulty);
+    const count = SNAPSHOT_PAIR_COUNTS[difficulty];
+    if (pool.length < count) return null;
+    sources.push(...(pool.length === count ? pool : shuffle(pool, rnd)).slice(0, count));
   }
-
   const scoredTasks: SnapshotTask[] = [];
-  for (const pos of SNAPSHOT_MEANINGFUL_POSITIONS) {
-    const pair = buildPair(pos, rnd);
+  for (const position of sources) {
+    const pair = buildPair(position, rnd, level);
     if (!pair) return null;
     scoredTasks.push(pair.meaningfulTask, pair.controlTask);
   }
   const ordered = interleave(scoredTasks, rnd);
-
-  // Разминка — 2 задания, результат не пишется в замер; переиспользуем
-  // реальные позиции (без этого пришлось бы держать отдельный источник
-  // специально для разминки, которая и так не считается).
-  const warmupSource = shuffle(SNAPSHOT_MEANINGFUL_POSITIONS, rnd).slice(0, SNAPSHOT_WARMUP);
   const warmupTasks: SnapshotTask[] = [];
-  for (const pos of warmupSource) {
-    const pair = buildPair(pos, rnd);
-    if (!pair) return null;
-    warmupTasks.push({ ...pair.meaningfulTask, id: `warmup-${pos.id}`, warmup: true });
+  const signature = (task: SnapshotTask) => `${piecesToFen(task.pieces)}|${task.removed.map(p => p.square).sort().join(',')}`;
+  const used = new Set(scoredTasks.map(signature));
+  for (const position of shuffle(sources, rnd).slice(0, SNAPSHOT_WARMUP)) {
+    let task: SnapshotTask | null = null;
+    for (let retry = 0; retry < 100; retry++) {
+      const pair = buildPair(position, rnd, level);
+      if (pair && !used.has(signature(pair.meaningfulTask))) { task = pair.meaningfulTask; break; }
+    }
+    if (!task) return null;
+    used.add(signature(task));
+    warmupTasks.push({ ...task, id: `warmup-${position.id}`, warmup: true });
   }
-
-  return { seed, tasks: [...warmupTasks, ...ordered] };
+  return { seed, level, tasks: [...warmupTasks, ...ordered] };
 }
 
 // --- Подсчёт очков попытки.
@@ -508,4 +503,14 @@ export function summarizeAttempt(results: PieceResult[]): AttemptSummary {
     extra,
     meanErrorDistance: distances.length ? distances.reduce((a, b) => a + b, 0) / distances.length : null,
   };
+}
+
+/** Only explicit level metadata counts; legacy difficulty/exposure never implies a new level. */
+export function snapshotRecordLevel(mode: string, data: Record<string, unknown>): SnapshotLevel | null {
+  const match = /^snapshot:level-([1-5])$/.exec(mode);
+  const stored = data.level;
+  const explicit = typeof stored === 'number' && SNAPSHOT_LEVELS.includes(stored as SnapshotLevel) ? stored as SnapshotLevel : null;
+  const fromMode = match ? Number(match[1]) as SnapshotLevel : null;
+  if (explicit !== null && fromMode !== null && explicit !== fromMode) return null;
+  return explicit ?? fromMode;
 }

@@ -117,6 +117,7 @@ const OPENINGS_LINES = 4;
  * цикл. Совпадение проверяет tests/today-plan.test.ts.
  */
 const KNIGHT_SCAN_TASKS = 20;
+const SNAPSHOT_TASKS = 16;
 
 /**
  * Модуль засчитан за день только при полноценном завершении сессии — не
@@ -133,6 +134,7 @@ export function sessionIsComplete(s: SessionRecord): boolean {
     case 'premove':
       return num(s.summary.attempts) === PREMOVE_TASKS;
     case 'reaction':
+      if (s.mode === 'snapshot' || /^snapshot:level-[1-5]$/.test(s.mode)) return num(s.summary.attempts) === SNAPSHOT_TASKS;
       return num(s.summary.attempts) === (s.mode === 'knight-scan' ? KNIGHT_SCAN_TASKS : REACTION_TASKS);
     case 'openings':
       return num(s.summary.linesDone) === OPENINGS_LINES;

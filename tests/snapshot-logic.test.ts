@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   ALL_SQUARES,
-  SNAPSHOT_DIFFICULTY,
+  SNAPSHOT_LEVELS,
+  SNAPSHOT_EXPOSURE_MS,
   SNAPSHOT_PAIR_COUNTS,
   SNAPSHOT_SCORED,
   SNAPSHOT_WARMUP,
@@ -135,27 +136,11 @@ describe('snapshot-logic: shuffled control', () => {
 describe('snapshot-logic: выбор исчезающих фигур', () => {
   const meaningful = piecesFromFen(SNAPSHOT_MEANINGFUL_POSITIONS.find((p) => p.difficulty === 'hard')!.fen);
 
-  it('короли никогда не исчезают', () => {
-    for (let i = 0; i < 20; i++) {
-      const removed = chooseRemoved(meaningful, 5, seeded(10 + i));
-      expect(removed?.some((p) => p.role === 'king')).toBe(false);
-    }
-  });
-
-  it('минимум одна пешка и минимум одна не-пешка среди исчезнувших', () => {
-    for (let i = 0; i < 20; i++) {
-      const removed = chooseRemoved(meaningful, 5, seeded(50 + i))!;
-      expect(removed.some((p) => p.role === 'pawn')).toBe(true);
-      expect(removed.some((p) => p.role !== 'pawn')).toBe(true);
-    }
-  });
-
-  it('исчезнувшие фигуры лежат минимум в двух четвертях доски', () => {
-    for (let i = 0; i < 20; i++) {
-      const removed = chooseRemoved(meaningful, 5, seeded(70 + i))!;
-      const quads = new Set(removed.map((p) => quadrantOf(p.square)));
-      expect(quads.size).toBeGreaterThanOrEqual(2);
-    }
+  it('allows pawns and kings, with no repeated squares', () => {
+    const pieces = [{ square: 'a1', color: 'white', role: 'king' }, { square: 'b2', color: 'white', role: 'pawn' }] as PlacedPiece[];
+    expect(chooseRemoved(pieces, 2, seeded(1))?.map(p => p.role).sort()).toEqual(['king', 'pawn']);
+    expect(chooseRemoved(pieces, 3, seeded(1))).toBeNull();
+    expect(chooseRemoved(pieces, 1, seeded(1))).toHaveLength(1);
   });
 
   it('набор исчезнувших цветов/типов совпадает между meaningful и её control-парой', () => {
@@ -320,9 +305,8 @@ describe('snapshot-logic: вспомогательные функции', () => 
     expect(new Set(ALL_SQUARES).size).toBe(64);
   });
 
-  it('пороги сложности заданы по ТЗ', () => {
-    expect(SNAPSHOT_DIFFICULTY.easy).toEqual({ removeCount: 3, exposureMs: 2500 });
-    expect(SNAPSHOT_DIFFICULTY.medium).toEqual({ removeCount: 4, exposureMs: 1800 });
-    expect(SNAPSHOT_DIFFICULTY.hard).toEqual({ removeCount: 5, exposureMs: 1200 });
+  it('has five levels with a fixed exposure', () => {
+    expect(SNAPSHOT_LEVELS).toEqual([1, 2, 3, 4, 5]);
+    expect(SNAPSHOT_EXPOSURE_MS).toBe(3000);
   });
 });

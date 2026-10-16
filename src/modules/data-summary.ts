@@ -1,4 +1,5 @@
 import type { MeasurementRecord, ModuleId, OpeningNodeStat } from '../core/db';
+import { snapshotRecordLevel } from './snapshot-logic';
 import { groupBy, median, p90 } from '../core/stats';
 
 export const MODULE_LABELS: Record<ModuleId, string> = {
@@ -59,24 +60,31 @@ function rowOf(key: string, items: MeasurementRecord[]): SummaryRow {
   };
 }
 
-/** Сводка по модулю с разбивкой по режимам. */
-export function summarizeModule(measurements: MeasurementRecord[], module: ModuleId): SummaryRow[] {
-  const mine = measurements.filter((m) => m.module === module);
-  if (!mine.length) return [];
-  const rows = [...groupBy(mine, (m) => m.mode)]
-    .map(([mode, items]) => rowOf(mode, items))
-    .sort((a, b) => a.key.localeCompare(b.key));
-  return [rowOf('все режимы', mine), ...rows];
+const isSnapshot = (measurement: MeasurementRecord) => measurement.module === 'reaction' &&
+  (measurement.mode === 'snapshot' || measurement.mode.startsWith('snapshot:'));
+
+function snapshotRows(measurements: MeasurementRecord[]): SummaryRow[] {
+  return [...groupBy(measurements.filter(isSnapshot), m => snapshotRecordLevel(m.mode, m.data) ?? 'legacy')]
+    .map(([level, items]) => rowOf(level === 'legacy' ? 'Snapshot · без уровня (прежние результаты)' : `Snapshot · уровень ${level}`, items));
 }
 
-/** Сводка верхнего уровня: по одной строке на модуль. */
+/** Snapshot levels have separate aggregates; the legacy group stays unassigned. */
+export function summarizeModule(measurements: MeasurementRecord[], module: ModuleId): SummaryRow[] {
+  const mine = measurements.filter(m => m.module === module);
+  const regular = mine.filter(m => !isSnapshot(m));
+  const rows = [...groupBy(regular, m => m.mode)]
+    .map(([mode, items]) => rowOf(mode, items))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  return [...(regular.length ? [rowOf('все режимы', regular), ...rows] : []), ...snapshotRows(mine)];
+}
+
+/** Snapshot is listed per level rather than merged into a tactics average. */
 export function summarizeAll(measurements: MeasurementRecord[]): SummaryRow[] {
-  return (Object.keys(MODULE_LABELS) as ModuleId[])
-    .map((mod) => {
-      const mine = measurements.filter((m) => m.module === mod);
-      return { ...rowOf(MODULE_LABELS[mod], mine) };
-    })
-    .filter((r) => r.attempts > 0);
+  const regular = measurements.filter(m => !isSnapshot(m));
+  const rows = (Object.keys(MODULE_LABELS) as ModuleId[])
+    .map(mod => ({ ...rowOf(MODULE_LABELS[mod], regular.filter(m => m.module === mod)) }))
+    .filter(row => row.attempts > 0);
+  return [...rows, ...snapshotRows(measurements)];
 }
 
 export interface MotoricsBreakdownRow {

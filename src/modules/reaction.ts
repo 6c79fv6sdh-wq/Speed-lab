@@ -37,6 +37,8 @@ import { SNAPSHOT_PIECE_ICON } from '../data/snapshot-icons';
 import {
   ALL_SQUARES,
   SNAPSHOT_SCORED,
+  SNAPSHOT_LEVELS,
+  SNAPSHOT_EXPOSURE_MS,
   SNAPSHOT_WARMUP,
   generateSnapshotSession,
   piecesToFen,
@@ -46,7 +48,7 @@ import {
   type PieceResult,
   type Placement,
   type PlacedPiece,
-  type SnapshotDifficulty,
+  type SnapshotLevel,
   type SnapshotSession,
   type SnapshotTask,
 } from './snapshot-logic';
@@ -895,6 +897,12 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   let snSession: SnapshotSession | null = null;
+  let snRecording: Session | null = null;
+  let snLevel: SnapshotLevel = 1;
+  let snGeneration = 0;
+  let snExposureFrame: number | null = null;
+  let snFinishing = false;
+  let snWaitingForVisibility = false;
   let snIndex = 0;
   let snPhase: SnPhase = 'idle';
   let snArmed = false;
@@ -916,9 +924,15 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function snLater(fn: () => void, ms: number): void {
-    snPhaseTimer = window.setTimeout(fn, ms);
+    const generation = snGeneration;
+    snPhaseTimer = window.setTimeout(() => {
+      snPhaseTimer = null;
+      if (!disposed && generation === snGeneration) fn();
+    }, ms);
   }
   function snClearTimer(): void {
+    if (snExposureFrame !== null) { cancelAnimationFrame(snExposureFrame); snExposureFrame = null; }
+    snExposureProgress.classList.remove('is-running');
     if (snPhaseTimer !== null) {
       window.clearTimeout(snPhaseTimer);
       snPhaseTimer = null;
@@ -935,7 +949,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     const f = key.charCodeAt(0) - 97;
     const r = Number(key[1]) - 1;
     const dark = (f + r) % 2 === 0;
-    const sqEl = el('div', { class: `sn-sq ${dark ? 'sn-sq-dark' : 'sn-sq-light'}` });
+    const sqEl = el('button', { type: 'button', class: `sn-sq ${dark ? 'sn-sq-dark' : 'sn-sq-light'}`, 'aria-label': key, 'data-square': key });
     sqEl.addEventListener('click', () => snSquareClick(key));
     snBoardEl.append(sqEl);
     snSquares.push({ key, el: sqEl });
@@ -951,7 +965,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function snPieceEl(color: Color, role: Role, cls = ''): HTMLElement {
-    const s = el('span', { class: `sn-piece ${cls}`, 'aria-hidden': 'true' });
+    const s = el('span', { class: `sn-piece ${cls}`, 'aria-hidden': 'true', 'data-piece': `${color}-${role}` });
     s.style.backgroundImage = `url("${SNAPSHOT_PIECE_ICON[color][role]}")`;
     return s;
   }
@@ -960,6 +974,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     for (const sq of snSquares) {
       sq.el.innerHTML = '';
       sq.el.classList.remove('sn-outline-ok', 'sn-outline-bad', 'sn-outline-missed', 'sn-target');
+      sq.el.setAttribute('aria-label', sq.key);
     }
   }
 
@@ -1001,18 +1016,22 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   /** Итог: исходная позиция целиком + цветной контур на клетках исчезнувших фигур. */
   function snPaintReveal(task: SnapshotTask, results: PieceResult[]): void {
     snPaintFull(task.pieces);
-    for (const r of results) {
-      if (r.outcome === 'correct' && r.correctSquare) {
-        snSquareByKey(r.correctSquare)?.el.classList.add('sn-outline-ok');
-      } else if (r.outcome === 'missed' && r.correctSquare) {
-        snSquareByKey(r.correctSquare)?.el.classList.add('sn-outline-missed');
-      } else if (r.outcome === 'wrong-piece-right-square' && r.correctSquare) {
-        snSquareByKey(r.correctSquare)?.el.classList.add('sn-outline-bad');
-      } else if (r.outcome === 'right-piece-wrong-square') {
-        if (r.correctSquare) snSquareByKey(r.correctSquare)?.el.classList.add('sn-outline-missed');
-        if (r.chosenSquare) snSquareByKey(r.chosenSquare)?.el.classList.add('sn-outline-bad');
-      } else if (r.outcome === 'extra' && r.chosenSquare) {
-        snSquareByKey(r.chosenSquare)?.el.classList.add('sn-outline-bad');
+    const mark = (key: Key | null, kind: 'ok' | 'bad' | 'missed') => {
+      if (!key) return;
+      const square = snSquareByKey(key)?.el;
+      if (!square) return;
+      const label = kind === 'ok' ? 'Верно' : kind === 'bad' ? 'Ошибка' : 'Нужная клетка';
+      square.classList.add(`sn-outline-${kind}`);
+      square.setAttribute('aria-label', `${key}: ${label}`);
+      square.querySelector('.sn-result-mark')?.remove();
+      square.append(el('span', { class: `sn-result-mark sn-result-mark--${kind}`, 'aria-hidden': 'true' }, [kind === 'ok' ? '✓' : kind === 'bad' ? '×' : '?']));
+    };
+    for (const result of results) {
+      if (result.outcome === 'correct') mark(result.correctSquare, 'ok');
+      else if (result.outcome === 'wrong-piece-right-square') mark(result.correctSquare, 'bad');
+      else {
+        if (result.correctSquare) mark(result.correctSquare, 'missed');
+        if (result.chosenSquare) mark(result.chosenSquare, 'bad');
       }
     }
   }
@@ -1034,7 +1053,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
         {
           class: `sn-panel-piece ${snSelectedPanel === i ? 'sn-panel-piece-armed' : ''}`,
           type: 'button',
-          'aria-label': `${item.color === 'white' ? 'белая' : 'чёрная'} фигура`,
+          'aria-label': `${item.color === 'white' ? 'белые' : 'чёрные'}: ${snRoleLabels[item.role]}`,
         },
         [snPieceEl(item.color, item.role)],
       );
@@ -1072,6 +1091,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   // --- Фазы одной попытки.
 
   function snShowTask(): void {
+    snWaitingForVisibility = false;
     snClearTimer();
     if (!snSession) return;
     const task = snSession.tasks[snIndex];
@@ -1093,18 +1113,22 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function snShowExposure(task: SnapshotTask): void {
+    const generation = snGeneration;
     snPhase = 'exposure';
     renderSnVisibility();
     snPromptEl.textContent = 'Запомни позицию.';
     snPaintFull(task.pieces);
-    requestAnimationFrame(() => {
-      if (snPhase !== 'exposure') return; // сессию успели прервать/аннулировать, пока ждали кадр
+    snExposureFrame = requestAnimationFrame(() => {
+      snExposureFrame = null;
+      if (disposed || generation !== snGeneration || snPhase !== 'exposure') return; // сессию успели прервать/аннулировать, пока ждали кадр
       snBoardWidthAtShow = snBoardEl.getBoundingClientRect().width;
-      snLater(() => snShowMask(task), task.exposureMs);
+      snExposureProgress.classList.add('is-running');
+      snLater(() => snShowMask(task), SNAPSHOT_EXPOSURE_MS);
     });
   }
 
   function snShowMask(task: SnapshotTask): void {
+    snExposureProgress.classList.remove('is-running');
     snPhase = 'mask';
     renderSnVisibility();
     snPromptEl.textContent = '';
@@ -1143,17 +1167,13 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     snPhase = 'reveal';
     renderSnVisibility();
     snPaintReveal(task, results);
-    snPromptEl.textContent =
-      summary.accuracy === 1 ? 'Все фигуры на месте.' : `Верно: ${summary.fullyCorrect} из ${summary.total}.`;
+    snPromptEl.textContent = `Верно: ${summary.fullyCorrect} из ${summary.total}`;
 
     if (!task.warmup) {
       snAttempts.push({ task, results, summary, recallLatencyMs });
-      void session?.record(snMeasurementData(task, results, summary, recallLatencyMs));
+      void snRecording?.record(snMeasurementData(task, results, summary, recallLatencyMs));
     }
-    snLater(() => {
-      snIndex++;
-      snShowTask();
-    }, 1000);
+
   }
 
   function snMeasurementData(
@@ -1170,6 +1190,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       kind: task.kind,
       pairId: task.pairId,
       difficulty: task.difficulty,
+      level: task.level,
       fullyCorrect: summary.fullyCorrect,
       total: summary.total,
       accuracy: summary.accuracy,
@@ -1196,16 +1217,30 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   const snDoneBtn = el('button', { class: 'btn primary', type: 'button' }, ['Готово']);
   snDoneBtn.disabled = true;
   snDoneBtn.addEventListener('click', () => snFinishRecall());
+  const snNextBtn = el('button', { class: 'btn primary', type: 'button' }, ['Дальше']);
+  snNextBtn.addEventListener('click', () => {
+    if (snPhase !== 'reveal' || !snSession) return;
+    snIndex++;
+    snShowTask();
+  });
 
   /** Вкладка потеряла фокус или доска сменила размер во время таймингов —
    * попытка не в счёт, начинаем ту же задачу заново с фазы фиксации. */
   function snInvalidate(): void {
-    if (!snSession || !snArmed) return;
+    if (!snSession || !snArmed || !['fixation', 'exposure', 'mask'].includes(snPhase)) return;
     snClearTimer();
+    if (document.hidden) {
+      snWaitingForVisibility = true;
+      snPhase = 'fixation';
+      snPromptEl.textContent = '';
+      snPaintFixation();
+      renderSnVisibility();
+      return;
+    }
     snShowTask();
   }
   function onSnVisibilityChange(): void {
-    if (document.hidden) snInvalidate();
+    if (document.hidden || snWaitingForVisibility) snInvalidate();
   }
   const snResizeObserver = new ResizeObserver(() => {
     if (!snSession || !snArmed || snPhase !== 'exposure') return;
@@ -1215,13 +1250,34 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   snResizeObserver.observe(snBoardEl);
   document.addEventListener('visibilitychange', onSnVisibilityChange);
 
+  const snRoleLabels: Record<Role, string> = { pawn: 'пешка', knight: 'конь', bishop: 'слон', rook: 'ладья', queen: 'ферзь', king: 'король' };
+  const snLevelHint = el('p', { class: 'hint sn-level-hint', 'aria-live': 'polite' });
+  const snLevelButtons = SNAPSHOT_LEVELS.map(level => {
+    const button = el('button', { type: 'button', class: 'sn-level-button', 'aria-label': `Уровень ${level}`, 'aria-pressed': String(level === snLevel) }, [String(level)]);
+    button.addEventListener('click', () => {
+      if (snSession || snFinishing) return;
+      snLevel = level;
+      snResultsHost.replaceChildren();
+      snErrorReviewHost.replaceChildren();
+      renderSnVisibility();
+    });
+    return button;
+  });
+  const snLevelPicker = el('div', { class: 'sn-level-picker' }, [
+    el('div', { id: 'sn-level-label', class: 'sn-level-label' }, ['Уровень']),
+    el('div', { class: 'sn-level-options', role: 'group', 'aria-labelledby': 'sn-level-label' }, snLevelButtons),
+    snLevelHint,
+  ]);
+  const snExposureProgress = el('div', { class: 'sn-exposure-progress', 'aria-hidden': 'true' }, [el('div', { class: 'sn-time-fill' })]);
+  snExposureProgress.style.setProperty('--sn-exposure-ms', `${SNAPSHOT_EXPOSURE_MS}ms`);
+  const snFeedbackKey = el('p', { class: 'hint sn-feedback-key' }, ['✓ Верно · × Ошибка · ? Нужная клетка']);
   const snTitleEl = el('div', { class: 'ks-title' }, ['Snapshot']);
   const snIdleHint = el('p', { class: 'hint' }, [
-    'Позиция показывается ненадолго, потом несколько фигур исчезают — верни их на верные клетки ',
+    `Позиция показывается ${SNAPSHOT_EXPOSURE_MS / 1000} секунды, потом несколько фигур исчезают — верни их на верные клетки `,
     'по перемешанной панели снизу.',
   ]);
   const snCounterEl = el('div', { class: 'ks-counter hint' }, ['']);
-  const snPromptEl = el('div', { class: 'prompt' }, ['']);
+  const snPromptEl = el('div', { class: 'prompt', 'aria-live': 'polite', 'aria-atomic': 'true' }, ['']);
   const snStartBtn = el('button', { class: 'btn primary', type: 'button' }, ['Старт']);
   const snStopBtn = el('button', { class: 'btn', type: 'button' }, ['Прервать']);
   snStopBtn.disabled = true;
@@ -1239,6 +1295,14 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
 
   function renderSnVisibility(): void {
     const active = snPhase !== 'idle' && snPhase !== 'done';
+    for (const [i, button] of snLevelButtons.entries()) {
+      button.disabled = active || snFinishing;
+      button.setAttribute('aria-pressed', String(SNAPSHOT_LEVELS[i] === snLevel));
+    }
+    snLevelHint.textContent = snLevel === 1 ? 'Исчезнет 1 фигура' : snLevel === 5 ? 'Исчезнут 5 фигур' : `Исчезнут ${snLevel} фигуры`;
+    snExposureProgress.hidden = snPhase !== 'exposure';
+    snNextBtn.style.display = snPhase === 'reveal' ? '' : 'none';
+    snFeedbackKey.style.display = snPhase === 'reveal' ? '' : 'none';
     snIdleHint.style.display = snPhase === 'idle' ? '' : 'none';
     snPromptEl.style.display = active ? '' : 'none';
     snCounterEl.style.display = active ? '' : 'none';
@@ -1248,20 +1312,25 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     snResultsHost.style.display = snPhase === 'done' ? '' : 'none';
     snErrorReviewHost.style.display = snPhase === 'done' ? '' : 'none';
     snStartBtn.style.display = active ? 'none' : '';
-    snStartBtn.disabled = active;
+    snStartBtn.disabled = active || snFinishing;
     snStopBtn.disabled = !active;
   }
 
   function startSnapshot(): void {
+    if (snSession || snFinishing || disposed) return;
+    snClearTimer();
+    snGeneration++;
     const seed = Math.floor(Math.random() * 2 ** 31);
     let s = seed;
     const rnd = () => {
       s = (s * 1103515245 + 12345) % 2147483648;
       return s / 2147483648;
     };
-    const built = generateSnapshotSession(rnd, seed);
+    const built = generateSnapshotSession(rnd, seed, snLevel);
     if (!built) {
-      promptEl.textContent = 'Не удалось собрать сессию Snapshot.';
+      snResultsHost.textContent = 'Не удалось подобрать позиции для этого уровня.';
+      snPhase = 'done';
+      renderSnVisibility();
       return;
     }
     snSession = built;
@@ -1269,13 +1338,18 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     snAttempts = [];
     snPhase = 'idle';
     planNextHost.innerHTML = '';
-    session = new Session('reaction', 'snapshot', cal);
+    snResultsHost.replaceChildren();
+    snErrorReviewHost.replaceChildren();
+    snRecording = new Session('reaction', `snapshot:level-${snLevel}`, cal);
     renderSnVisibility();
     snShowTask();
     renderSnVisibility();
   }
 
   async function snFinish(): Promise<void> {
+    if (!snSession || snFinishing) return;
+    const generation = ++snGeneration;
+    snFinishing = true;
     snClearTimer();
     snArmed = false;
     snPhase = 'done';
@@ -1287,29 +1361,32 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     const controlAcc = accOf(controlAttempts);
     const structuralEdgePp = meaningfulAcc !== null && controlAcc !== null ? (meaningfulAcc - controlAcc) * 100 : null;
 
-    const byDiff = (d: SnapshotDifficulty) => snAttempts.filter((a) => a.task.difficulty === d);
     const distances = snAttempts.map((a) => a.summary.meanErrorDistance).filter((d): d is number => d !== null);
     const correctAttempts = snAttempts.filter((a) => a.summary.accuracy === 1);
 
     const summary: Record<string, number | string | null> = {
       attempts: snAttempts.length,
+      level: snSession.level,
       meaningfulAccuracy: meaningfulAcc,
       controlAccuracy: controlAcc,
       structuralEdgePp,
-      accuracyEasy: accOf(byDiff('easy')),
-      accuracyMedium: accOf(byDiff('medium')),
-      accuracyHard: accOf(byDiff('hard')),
       meanErrorDistance: distances.length ? distances.reduce((a, b) => a + b, 0) / distances.length : null,
       medianRecallMs: median(correctAttempts.map((a) => a.recallLatencyMs)),
       seed: snSession?.seed ?? null,
     };
 
-    const finishedId = session?.id ?? null;
-    await session?.finish(summary);
-    session = null;
+    const recording = snRecording;
+    const finishedId = recording?.id ?? null;
     const finishedAttempts = snAttempts;
     snSession = null;
+    snRecording = null;
+    renderSnVisibility();
+    await recording?.finish(summary);
+    if (generation !== snGeneration || disposed) return;
+    snFinishing = false;
+    if (exercise !== 'snapshot') { renderSnVisibility(); return; }
     await renderSnResults(summary, finishedId, finishedAttempts);
+    if (generation !== snGeneration || disposed) return;
     renderSnErrorReview(finishedAttempts);
     renderSnVisibility();
     renderPlanNext();
@@ -1321,12 +1398,14 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     finishedId: string | null,
     attempts: SnAttemptRecord[],
   ): Promise<void> {
+    const generation = snGeneration;
     snResultsHost.innerHTML = '';
     const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
     const all = await allSessions();
+    if (disposed || generation !== snGeneration) return;
     const prev =
       all
-        .filter((s) => s.module === 'reaction' && s.mode === 'snapshot' && s.id !== finishedId)
+        .filter((s) => s.module === 'reaction' && s.mode === `snapshot:level-${summary.level}` && s.summary.level === summary.level && s.id !== finishedId)
         .sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
     const compare = (cur: number | null, prevKey: string, fmt: (v: number | null) => string): string => {
       if (!prev) return 'первая сессия Snapshot';
@@ -1340,6 +1419,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     const correctPieces = attempts.reduce((sum, attempt) => sum + attempt.summary.fullyCorrect, 0);
     const totalPieces = attempts.reduce((sum, attempt) => sum + attempt.summary.total, 0);
     snResultsHost.append(
+      el('p', { class: 'hint' }, [`Уровень ${summary.level}`]),
       metrics([metric('Правильно восстановлено фигур', `${correctPieces} из ${totalPieces}`)]),
       disclosure('Подробная статистика', [
         metrics([
@@ -1354,13 +1434,6 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
           // структура запоминать быстрее случайного набора тех же фигур.
           'Структурное преимущество — насколько точнее держится в памяти настоящая структура партии по сравнению с тем же набором фигур вперемешку.',
         ]),
-        table(
-          ['Сложность', 'Точность'],
-          (['easy', 'medium', 'hard'] as SnapshotDifficulty[]).map((d) => [
-            d === 'easy' ? 'Лёгкая' : d === 'medium' ? 'Средняя' : 'Сложная',
-            fmtPct(num(summary[`accuracy${d[0].toUpperCase()}${d.slice(1)}`])),
-          ]),
-        ),
         metrics([
           metric('Средняя ошибка расстояния', num(summary.meanErrorDistance) === null ? '—' : `${num(summary.meanErrorDistance)!.toFixed(1)} кл.`),
           metric('Медиана восстановления', fmtMs(num(summary.medianRecallMs))),
@@ -1383,9 +1456,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       const orientationWhite = a.task.orientation === 'white';
       const row = el('div', { class: 'sn-review-row' }, [
         el('p', { class: 'hint sn-review-label' }, [
-          `${a.task.kind === 'meaningful' ? 'Игровая позиция' : 'Перемешанная'} · ${
-            a.task.difficulty === 'easy' ? 'лёгкая' : a.task.difficulty === 'medium' ? 'средняя' : 'сложная'
-          } · верно ${a.summary.fullyCorrect} из ${a.summary.total}`,
+          `${a.task.kind === 'meaningful' ? 'Игровая позиция' : 'Перемешанная'} · уровень ${a.task.level} · верно ${a.summary.fullyCorrect} из ${a.summary.total}`,
         ]),
         el('div', { class: 'sn-review-pair' }, [
           snMiniBoard(a.task.pieces, orientationWhite, a.results),
@@ -1428,12 +1499,15 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
 
   const snArea = el('div', { class: 'ks-area sn-area' }, [
     snTitleEl,
+    snLevelPicker,
     snIdleHint,
     snPromptEl,
     snCounterEl,
+    snExposureProgress,
     snBoardEl,
+    snFeedbackKey,
     snPanelEl,
-    el('div', { class: 'row' }, [snStartBtn, snStopBtn, snDoneBtn]),
+    el('div', { class: 'row' }, [snStartBtn, snStopBtn, snDoneBtn, snNextBtn]),
     snResultsHost,
     snErrorReviewHost,
   ]);
@@ -1454,6 +1528,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     })),
     exercise,
     (v) => {
+      if (exercise === 'snapshot' && v !== 'snapshot' && snSession) void snFinish();
       exercise = v;
       if (!session) promptEl.textContent = `${EXERCISE_LABELS[v]}. Нажми «Старт».`;
       updateExerciseVisibility();

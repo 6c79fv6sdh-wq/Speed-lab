@@ -18,11 +18,16 @@ import {
   summarizeModule,
   type SummaryRow,
 } from './data-summary';
+import { snapshotRecordLevel } from './snapshot-logic';
 import { REPERTOIRES } from '../data/repertoire';
 import { PREMOVE_MODE_LABELS } from '../data/premove-positions';
 
 function sessionModeLabel(session: SessionRecord): string {
   const mode = session.mode.split(':')[0];
+  if (mode === 'snapshot') {
+    const level = snapshotRecordLevel(session.mode, session.summary);
+    return level === null ? 'Snapshot · без уровня' : `Snapshot · уровень ${level}`;
+  }
   const labels: Record<string, string> = {
     'source-target': 'Вектор', signal: 'Сигнал',
     ...PREMOVE_MODE_LABELS,
