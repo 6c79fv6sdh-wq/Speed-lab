@@ -215,14 +215,58 @@ cg-board {
   z-index: 10;
 }
 
-/* Narrow amber core and a soft orange halo; no flashing or moving effects. */
-.hl-trace-line {
+/* Orange embers under a narrow hot core. Neither layer ever flashes off. */
+.hl-trace-line,
+.hl-trace-ember {
   fill: none;
-  stroke: #ffd08a;
-  stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 1px #ff7800) drop-shadow(0 0 3px rgba(255, 104, 0, 0.65));
+}
+
+.hl-trace-ember {
+  stroke: #ff6508;
+  stroke-width: 4;
+  opacity: 0.65;
+  filter: blur(1px) drop-shadow(0 0 4px rgba(255, 87, 0, 0.8));
+}
+
+.hl-trace-line {
+  stroke: #ffad32;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 1px #ff7800);
+}
+
+/* Only animate a visible trace; clearing it also stops the effect. */
+.hl-trace-line[points] {
+  animation: trace-fire-core 1.37s ease-in-out infinite;
+}
+
+.hl-trace-ember[points] {
+  animation: trace-fire-ember 1.91s ease-in-out infinite;
+}
+
+@keyframes trace-fire-core {
+  0%, 100% { stroke: #ffad32; opacity: 0.95; }
+  17% { stroke: #ff8a16; opacity: 0.8; }
+  31% { stroke: #ffe0a0; opacity: 1; }
+  48% { stroke: #ff9a20; opacity: 0.86; }
+  63% { stroke: #ffca62; opacity: 1; }
+  79% { stroke: #ff941c; opacity: 0.83; }
+}
+
+@keyframes trace-fire-ember {
+  0%, 100% { opacity: 0.65; }
+  23% { opacity: 0.4; }
+  41% { opacity: 0.85; }
+  58% { opacity: 0.5; }
+  76% { opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-trace-line[points],
+  .hl-trace-ember[points] {
+    animation: none;
+  }
 }
 
 /*

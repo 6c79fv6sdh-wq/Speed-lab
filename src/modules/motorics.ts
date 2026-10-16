@@ -172,10 +172,12 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   const trace = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   trace.setAttribute('class', 'hl-trace');
   trace.setAttribute('aria-hidden', 'true');
-  // Keep one path while moving: the glow needs no animation loop or new nodes.
+  // Reuse both fire layers; CSS flickers without a pointer-sampling timer.
+  const traceEmber = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  traceEmber.setAttribute('class', 'hl-trace-ember');
   const traceLine = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   traceLine.setAttribute('class', 'hl-trace-line');
-  trace.append(traceLine);
+  trace.append(traceEmber, traceLine);
 
   const board = new Board(boardHost, {
     orientation: 'white',
@@ -267,6 +269,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function clearTrace(): void {
+    traceEmber.removeAttribute('points');
     traceLine.removeAttribute('points');
   }
 
@@ -276,10 +279,9 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       return;
     }
     const rect = boardRect(board.wrap);
-    traceLine.setAttribute(
-      'points',
-      samples.map((s) => `${s.x - rect.left},${s.y - rect.top}`).join(' '),
-    );
+    const points = samples.map((s) => `${s.x - rect.left},${s.y - rect.top}`).join(' ');
+    traceEmber.setAttribute('points', points);
+    traceLine.setAttribute('points', points);
   }
 
   function nextRep(): void {
