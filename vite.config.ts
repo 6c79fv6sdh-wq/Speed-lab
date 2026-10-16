@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -15,12 +18,32 @@ function buildId(): string {
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())} ${sha}`;
 }
 
+// Resource URLs are stable; version their caches by file content, not build time.
+const hash = createHash('sha256');
+function hashTree(directory: string): void {
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const path = join(directory, entry.name);
+    hash.update(path);
+    if (entry.isDirectory()) hashTree(path);
+    else hash.update(readFileSync(path));
+  }
+}
+for (const directory of ['public/engine', 'public/lc0', 'public/piece']) hashTree(directory);
+const resourceVersion = hash.digest('hex').slice(0, 16);
+const cacheVersionFile = `cache-version-${resourceVersion}.js`;
+
 export default defineConfig({
   base: './',
   define: {
     __BUILD_ID__: JSON.stringify(buildId()),
   },
   plugins: [
+    {
+      name: 'resource-cache-version',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: cacheVersionFile, source: `self.LAB_RESOURCE_VERSION=${JSON.stringify(resourceVersion)};` });
+      },
+    },
     VitePWA({
       // Не 'autoUpdate': тот режим принудительно включает
       // skipWaiting + clientsClaim (см. комментарий к workbox ниже), а
@@ -66,7 +89,7 @@ export default defineConfig({
         // lc0 с сетью Maia. Подробности — в public/coi.js. Подключаем
         // первым, до маршрутов Workbox: обработчик там аккуратный и
         // берёт на себя только навигации.
-        importScripts: ['coi.js'],
+        importScripts: [cacheVersionFile, 'coi.js'],
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
         // Движок весит 7 МБ: в предзагрузку не кладём, иначе первое открытие
         // сайта стало бы неприлично тяжёлым. Кешируется при первом использовании.
@@ -78,29 +101,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/engine\//],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.includes('/piece/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'piece-sets',
-              expiration: { maxEntries: 64 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: ({ url }) => url.pathname.includes('/engine/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'stockfish-engine',
-              expiration: { maxEntries: 8 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          // Правила для /lc0/ здесь нет намеренно: эти запросы забирает на
-          // себя coi.js — ему нужно дописать к ответу заголовки изоляции,
-          // а Workbox так не умеет. Кеширование там своё, тоже cache-first.
-        ],
+        // Scoped, content-versioned resource caches are handled in coi.js.
+        runtimeCaching: [],
       },
       devOptions: { enabled: false },
     }),

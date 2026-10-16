@@ -110,6 +110,7 @@ function botPicker(
 }
 
 export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
+  let disposed = false;
   const cal = ctx.calibration;
   let tcId = DEFAULT_TIME_CONTROL;
   let botId = DEFAULT_BOT;
@@ -272,8 +273,10 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
       return;
     }
     const spent = performance.now() - userMoveStartedAt;
+    clocks.tick();
+    const expired = clocks.flagged();
+    if (expired) { void end(expired === userColor ? 'flag-user' : 'flag-bot'); return; }
     userMoveTimes.push(spent);
-
     recordMove(move, spent);
     clocks.switchTo(botColor());
     renderClocks();
@@ -318,6 +321,9 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
    */
   async function playBotMove(): Promise<void> {
     if (!running || !clocks || pos.turn !== botColor()) return;
+    const token = startToken;
+    const searchedPosition = pos;
+    const cancelled = () => token !== startToken || pos !== searchedPosition || !running;
     const def = currentBot();
     let move: NormalMove | null = null;
     const thinkStartedAt = performance.now();
@@ -336,7 +342,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
       try {
         const width = def.temperature ? (def.candidates ?? MAX_CANDIDATES) : 1;
         const cands = await maiaCandidates(fenOf(pos), def.net!, width);
-        if (!running || pos.turn !== botColor()) return;
+        if (cancelled() || pos.turn !== botColor()) return;
         move = tryUci(sampleByTemperature(cands, def.temperature ?? 0, rnd, width));
       } catch {
         engineStatusEl.textContent = 'Не получилось поднять соперника — играю попроще.';
@@ -348,7 +354,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
         const engine = sharedEngine();
         const analyser: Analyser = (fen, opts) => engine.analyse(fen, opts);
         const blindMove = await chooseBlindMove(analyser, pos, def.blindProfile ?? BEGINNER_PROFILE, rnd);
-        if (!running || pos.turn !== botColor()) return;
+        if (cancelled() || pos.turn !== botColor()) return;
         move = blindMove;
       } catch {
         engineStatusEl.textContent = 'Основной режим сейчас недоступен — играю попроще.';
@@ -363,7 +369,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
           ? 300
           : Math.max(40, Math.min(600, clocks.get(botColor()) * 0.05));
         const uci = await engine.bestMove(fenOf(pos), { movetimeMs: Math.round(budget) });
-        if (!running || pos.turn !== botColor()) return;
+        if (cancelled() || pos.turn !== botColor()) return;
         move = tryUci(uci);
       } catch {
         engineStatusEl.textContent = 'Основной режим сейчас недоступен — играю попроще.';
@@ -372,12 +378,15 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
 
     if (!move) move = chooseMove(pos, 'human2200', rnd);
 
-    if (!running || !clocks || pos.turn !== botColor()) return;
+    if (cancelled() || !clocks || pos.turn !== botColor()) return;
     if (!move) {
       checkGameEnd();
       return;
     }
 
+    clocks.tick();
+    const expired = clocks.flagged();
+    if (expired) { void end(expired === userColor ? 'flag-user' : 'flag-bot'); return; }
     recordMove(move, performance.now() - thinkStartedAt);
     clocks.switchTo(userColor);
     renderClocks();
@@ -433,7 +442,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
       game.result = pgnResult(outcome);
       game.resultLabel = OUTCOME_LABELS[outcome];
       persist();
-      await autosave.flush();
+      await autosave.flush().catch(() => { /* Autosave displays a retryable storage error. */ });
     }
 
     const def = currentBot();
@@ -457,6 +466,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function renderPlanNext(): void {
+    if (disposed) return;
     planNextHost.innerHTML = '';
     if (!cameFromPlan) return;
     const next = stepAfter('scramble', new Date());
@@ -681,7 +691,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
   // Партию бросают закрытием вкладки — дописываем последнее состояние.
   const onHide = () => {
     if (game) persist();
-    void autosave.flush();
+    void autosave.flush().catch(() => { /* Autosave displays a retryable storage error. */ });
   };
   window.addEventListener('pagehide', onHide);
 
@@ -730,6 +740,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   return () => {
+    disposed = true;
     startToken++;
     stopTicking();
     clearTimers();

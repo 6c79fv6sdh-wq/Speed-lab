@@ -1,9 +1,9 @@
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 const games = process.argv[2] ?? '2';
 const plies = process.argv[3] ?? '40';
 const bots  = process.argv[4] ?? 'maia-novice,maia-1000,maia-1100,sf-1400';
 const temps = process.argv[5] ? `&temps=${process.argv[5]}` : '';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined });
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('PAGEERROR:', e.message));
 page.on('console', m => { const t = m.text(); if (!t.startsWith('[vite]')) console.log(t); });

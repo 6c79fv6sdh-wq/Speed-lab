@@ -46,4 +46,4 @@ const sig = await crypto.subtle.sign(
 const token = `${payload}.${b64url(sig)}`;
 
 writeFileSync(join(DIST, 'e2e-token.txt'), token);
-console.log(token);
+console.log('Тестовый пропуск подготовлен.');

@@ -2,6 +2,8 @@ import { openDB, type IDBPDatabase } from 'idb';
 import { type Calibration, DEFAULT_CALIBRATION, normalizeCalibration } from './settings';
 import type { Profile } from './profiles';
 import type { GameRecord } from './games';
+import { parseBundle } from './backup';
+export { parseBundle } from './backup';
 
 export type ModuleId = 'motorics' | 'premove' | 'reaction' | 'openings' | 'scramble';
 
@@ -33,7 +35,9 @@ export interface MeasurementRecord {
 
 export interface ExportBundle {
   app: 'sciencechess-hyperlab';
-  version: 1;
+  version: 1 | 2;
+  profile?: Profile;
+  games: GameRecord[];
   exportedAt: number;
   calibration: Calibration;
   sessions: SessionRecord[];
@@ -110,10 +114,16 @@ function db(): Promise<IDBPDatabase> {
           }
         }
       },
+      blocking() {
+        const connection = dbp;
+        dbp = null;
+        void connection?.then(d => d.close());
+      },
+      terminated() { dbp = null; },
       blocked() {
         console.warn('Обновление базы ждёт закрытия других вкладок Lab.');
       },
-    });
+    }).catch(error => { dbp = null; throw error; });
   }
   return dbp;
 }
@@ -136,10 +146,8 @@ export interface StorageStatus {
 /**
  * Просит браузер держать данные постоянно.
  *
- * Зачем: Safari на iOS по умолчанию чистит IndexedDB сайта, если им
- * не пользовались семь дней. Постоянное хранение снимает этот таймер.
- * Установленное на Home Screen приложение под ограничение не попадает,
- * но лишний запрос не мешает.
+ * Это просьба к браузеру, а не гарантия сохранности. Поведение зависит
+ * от браузера и режима работы; резервная копия всё равно необходима.
  */
 export async function requestPersistentStorage(): Promise<StorageStatus> {
   const s = navigator.storage;
@@ -262,13 +270,22 @@ export async function setActiveProfileId(id: string | null): Promise<void> {
 export async function adoptOrphanRecords(profileId: string): Promise<number> {
   const d = await db();
   let adopted = 0;
-  const tx = d.transaction(['sessions', 'measurements', 'games'], 'readwrite');
-  for (const store of ['sessions', 'measurements', 'games'] as const) {
+  const tx = d.transaction(['sessions', 'measurements', 'games', 'openingNodes'], 'readwrite');
+  for (const store of ['sessions', 'measurements', 'games', 'openingNodes'] as const) {
     let cursor = await tx.objectStore(store).openCursor();
     while (cursor) {
       const row = cursor.value as { profileId?: string };
       if (!row.profileId) {
-        await cursor.update({ ...row, profileId });
+        if (store === 'openingNodes') {
+          const node = cursor.value as OpeningNodeStat;
+          const id = `${profileId}|${node.repertoireId}|${node.path}`;
+          if (id === node.id) await cursor.update({ ...node, profileId });
+          else {
+            const existing = await tx.objectStore(store).get(id) as OpeningNodeStat | undefined;
+            if (!existing) await tx.objectStore(store).put({ ...node, id, profileId });
+            await cursor.delete();
+          }
+        } else await cursor.update({ ...row, profileId });
         adopted++;
       }
       cursor = await cursor.continue();
@@ -393,8 +410,8 @@ export async function clearMeasurements(): Promise<void> {
   const active = await activeProfileId();
   if (!active) return;
   const d = await db();
-  const tx = d.transaction(['sessions', 'measurements', 'openingNodes', 'games'], 'readwrite');
-  for (const store of ['sessions', 'measurements', 'openingNodes', 'games'] as const) {
+  const tx = d.transaction(['sessions', 'measurements', 'openingNodes'], 'readwrite');
+  for (const store of ['sessions', 'measurements', 'openingNodes'] as const) {
     let cursor = await tx.objectStore(store).openCursor();
     while (cursor) {
       if ((cursor.value as { profileId?: string }).profileId === active) await cursor.delete();
@@ -405,20 +422,23 @@ export async function clearMeasurements(): Promise<void> {
 }
 
 export async function exportBundle(): Promise<ExportBundle> {
-  const [calibration, sessions, measurements, openingNodes] = await Promise.all([
-    loadCalibration(),
-    allSessions(),
-    allMeasurements(),
-    allOpeningNodes(),
+  const d = await db();
+  const tx = d.transaction(['kv', 'profiles', 'sessions', 'measurements', 'openingNodes', 'games']);
+  const profileId = await tx.objectStore('kv').get(ACTIVE_PROFILE_KEY) as string | undefined;
+  const profile = profileId ? await tx.objectStore('profiles').get(profileId) as Profile | undefined : undefined;
+  if (!profile) throw new Error('Сначала войди в свой профиль.');
+  const [calibration, sessions, measurements, openingNodes, games] = await Promise.all([
+    tx.objectStore('kv').get('calibration'),
+    tx.objectStore('sessions').index('profileId').getAll(profile.id),
+    tx.objectStore('measurements').index('profileId').getAll(profile.id),
+    tx.objectStore('openingNodes').getAll(),
+    tx.objectStore('games').index('profileId').getAll(profile.id),
   ]);
+  await tx.done;
   return {
-    app: 'sciencechess-hyperlab',
-    version: 1,
-    exportedAt: Date.now(),
-    calibration,
-    sessions,
-    measurements,
-    openingNodes,
+    app: 'sciencechess-hyperlab', version: 2, exportedAt: Date.now(), profile,
+    calibration: normalizeCalibration(calibration), sessions, measurements, games,
+    openingNodes: openingNodes.filter((n: OpeningNodeStat) => n.profileId === profile.id),
   };
 }
 
@@ -426,41 +446,45 @@ export interface ImportResult {
   sessions: number;
   measurements: number;
   openingNodes: number;
+  games: number;
   calibrationApplied: boolean;
 }
 
-export function parseBundle(text: string): ExportBundle {
-  const raw = JSON.parse(text) as Partial<ExportBundle>;
-  if (!raw || typeof raw !== 'object') throw new Error('Не объект JSON');
-  if (raw.app !== 'sciencechess-hyperlab') throw new Error('Чужой формат: поле app не совпадает');
-  if (!Array.isArray(raw.sessions) || !Array.isArray(raw.measurements))
-    throw new Error('Нет массивов sessions/measurements');
-  return {
-    app: 'sciencechess-hyperlab',
-    version: 1,
-    exportedAt: Number(raw.exportedAt ?? Date.now()),
-    calibration: normalizeCalibration(raw.calibration),
-    sessions: raw.sessions as SessionRecord[],
-    measurements: raw.measurements as MeasurementRecord[],
-    openingNodes: Array.isArray(raw.openingNodes) ? (raw.openingNodes as OpeningNodeStat[]) : [],
-  };
-}
-
-/** Импорт слиянием по id. Настройки берутся из файла. */
-export async function importBundle(bundle: ExportBundle): Promise<ImportResult> {
+/** Import into the signed-in profile, with stable IDs for repeatable cross-device restores. */
+export async function importBundle(input: ExportBundle): Promise<ImportResult> {
+  const bundle = parseBundle(JSON.stringify(input));
   const d = await db();
-  const tx = d.transaction(['sessions', 'measurements', 'openingNodes'], 'readwrite');
-  await Promise.all([
-    ...bundle.sessions.map((s) => tx.objectStore('sessions').put(s)),
-    ...bundle.measurements.map((m) => tx.objectStore('measurements').put(m)),
-    ...bundle.openingNodes.map((n) => tx.objectStore('openingNodes').put(n)),
-  ]);
-  await tx.done;
-  await saveCalibration(bundle.calibration);
+  const tx = d.transaction(['kv', 'sessions', 'measurements', 'openingNodes', 'games'], 'readwrite');
+  // Consume transaction failures explicitly when a validation/collision throws below.
+  const done = tx.done;
+  void done.catch(() => undefined);
+  try {
+    const active = await tx.objectStore('kv').get(ACTIVE_PROFILE_KEY) as string | undefined;
+    if (!active) throw new Error('Сначала войди в профиль, в который нужно импортировать историю.');
+    const idFor = (id: string, owner?: string): string => owner === active ? id :
+      `import:${JSON.stringify([active, owner ?? bundle.profile?.id ?? 'legacy', id])}`;
+    const save = async <T extends { id: string; profileId?: string }>(store: 'sessions' | 'measurements' | 'openingNodes' | 'games', row: T) => {
+      const existing = await tx.objectStore(store).get(row.id) as { profileId?: string } | undefined;
+      if (existing && existing.profileId !== active) throw new Error('Конфликт записи с данными другого профиля.');
+      await tx.objectStore(store).put(row);
+    };
+    for (const s of bundle.sessions) await save('sessions', { ...s, id: idFor(s.id, s.profileId), profileId: active });
+    for (const m of bundle.measurements) await save('measurements', {
+      ...m, id: idFor(m.id, m.profileId), sessionId: idFor(m.sessionId, m.profileId), profileId: active,
+    });
+    for (const n of bundle.openingNodes) await save('openingNodes', {
+      ...n, id: `${active}|${n.repertoireId}|${n.path}`, profileId: active,
+    });
+    for (const g of bundle.games) await save('games', { ...g, id: idFor(g.id, g.profileId), profileId: active });
+    await tx.objectStore('kv').put(bundle.calibration, 'calibration');
+    await done;
+  } catch (error) {
+    try { tx.abort(); } catch { /* Already aborted/completed. */ }
+    await done.catch(() => undefined);
+    throw error;
+  }
   return {
-    sessions: bundle.sessions.length,
-    measurements: bundle.measurements.length,
-    openingNodes: bundle.openingNodes.length,
-    calibrationApplied: true,
+    sessions: bundle.sessions.length, measurements: bundle.measurements.length,
+    openingNodes: bundle.openingNodes.length, games: bundle.games.length, calibrationApplied: true,
   };
 }

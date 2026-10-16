@@ -8,6 +8,7 @@ import {
   uid,
 } from './db';
 import type { Calibration } from './settings';
+import { reportStorageError } from './storage-error';
 
 /**
  * Снимок калибровки для записи в замеры: boardSize подменяем на фактический
@@ -65,8 +66,10 @@ export class Session {
       data,
       profileId,
     };
-    this.count++;
-    await putMeasurement(rec);
+    try {
+      await putMeasurement(rec);
+      this.count++;
+    } catch (error) { reportStorageError(error, () => putMeasurement(rec)); }
   }
 
   async finish(summary: Record<string, number | string | null>): Promise<void> {
@@ -83,7 +86,8 @@ export class Session {
       summary,
       profileId,
     };
-    await putSession(rec);
+    try { await putSession(rec); }
+    catch (error) { this.ended = false; reportStorageError(error, () => putSession(rec)); }
   }
 }
 

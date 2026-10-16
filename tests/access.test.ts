@@ -110,13 +110,28 @@ describe('verifyTokenWithKey: офлайн-проверка подписи и с
 
 describe('loginTo: разбор ответа воркера', () => {
   const realFetch = globalThis.fetch;
+  const realXhr = globalThis.XMLHttpRequest;
+  let publicJwk: JsonWebKey;
+  let validToken: string;
+  beforeAll(async () => {
+    const pair = await makeKeyPair(); publicJwk = pair.publicJwk;
+    validToken = await signToken(pair.privateKey, Math.floor(Date.now() / 1000) + 3600);
+  });
 
   beforeEach(() => {
     localStorage.clear();
+    class FailedXhr {
+      onerror: (() => void) | null = null;
+      open() {} setRequestHeader() {}
+      send() { this.onerror?.(); }
+    }
+    globalThis.XMLHttpRequest = FailedXhr as unknown as typeof XMLHttpRequest;
   });
 
   afterEach(() => {
     globalThis.fetch = realFetch;
+    globalThis.XMLHttpRequest = realXhr;
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -130,19 +145,34 @@ describe('loginTo: разбор ответа воркера', () => {
 
   it('200 с токеном — ok, токен сохранён в localStorage', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ token: 'abc.def', exp: 123 }), { status: 200 }),
+      new Response(JSON.stringify({ token: validToken, exp: 123 }), { status: 200 }),
     ) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', '2000');
+    const result = await loginTo('https://gate.example', '2000', publicJwk);
     expect(result).toEqual({ ok: true });
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('abc.def');
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(validToken);
+  });
+
+  it('200 с неподписанным токеном — ошибка сервера, доступ не сохраняется', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ token: 'forged.token' }), { status: 200 })) as unknown as typeof fetch;
+    expect(await loginTo('https://gate.example', 'x', publicJwk)).toEqual({ ok: false, reason: 'server' });
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('зависшие fetch ограничены по времени и переходят к запасному транспорту', async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn(() => new Promise(() => {})) as unknown as typeof fetch;
+    const pending = loginTo('https://gate.example', 'x', publicJwk);
+    await vi.advanceTimersByTimeAsync(10001);
+    expect(await pending).toEqual({ ok: false, reason: 'network' });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   it('POST шлёт код в JSON-теле на /login', async () => {
     const fetchSpy = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ token: 't' }), { status: 200 }));
+      .mockResolvedValue(new Response(JSON.stringify({ token: validToken }), { status: 200 }));
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
-    await loginTo('https://gate.example', '  MyCode  ');
+    await loginTo('https://gate.example', '  MyCode  ', publicJwk);
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://gate.example/login',
       expect.objectContaining({
@@ -156,7 +186,7 @@ describe('loginTo: разбор ответа воркера', () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response(JSON.stringify({ error: 'invalid_code' }), { status: 401 })) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', 'wrong');
+    const result = await loginTo('https://gate.example', 'wrong', publicJwk);
     expect(result).toEqual({ ok: false, reason: 'invalid' });
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
@@ -167,13 +197,13 @@ describe('loginTo: разбор ответа воркера', () => {
       .mockResolvedValue(
         new Response(JSON.stringify({ error: 'rate_limited', retryAfterMs: 45000 }), { status: 429 }),
       ) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', 'x');
+    const result = await loginTo('https://gate.example', 'x', publicJwk);
     expect(result).toEqual({ ok: false, reason: 'rate_limited', retryAfterMs: 45000 });
   });
 
   it('429 без тела/с битым телом — запасное значение retryAfterMs', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('not json', { status: 429 })) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', 'x');
+    const result = await loginTo('https://gate.example', 'x', publicJwk);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reason).toBe('rate_limited');
@@ -183,14 +213,14 @@ describe('loginTo: разбор ответа воркера', () => {
 
   it('обрыв сети (fetch бросает) — network, не падает', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', 'x');
+    const result = await loginTo('https://gate.example', 'x', publicJwk);
     // debug — временное диагностическое поле, содержимое не проверяем строго.
     expect(result).toMatchObject({ ok: false, reason: 'network' });
   });
 
   it('200, но тело без токена (некорректный ответ) — network, не ok', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 })) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', 'x');
+    const result = await loginTo('https://gate.example', 'x', publicJwk);
     expect(result).toMatchObject({ ok: false, reason: 'network' });
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
@@ -205,13 +235,13 @@ describe('loginTo: разбор ответа воркера', () => {
     const fetchSpy = vi
       .fn()
       .mockRejectedValueOnce(new TypeError('Load failed'))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ token: 'via-plain-fetch' }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ token: validToken }), { status: 200 }));
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-    const result = await loginTo('https://gate.example', '2000');
+    const result = await loginTo('https://gate.example', '2000', publicJwk);
 
     expect(result).toEqual({ ok: true });
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('via-plain-fetch');
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(validToken);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     // Второй заход — «простой» запрос: без своих заголовков, без preflight.
     expect(fetchSpy.mock.calls[1][1]).not.toHaveProperty('headers');
@@ -223,7 +253,7 @@ describe('loginTo: разбор ответа воркера', () => {
     const sent: string[] = [];
     class FakeXhr {
       status = 200;
-      responseText = JSON.stringify({ token: 'via-xhr' });
+      responseText = JSON.stringify({ token: validToken });
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
       ontimeout: (() => void) | null = null;
@@ -238,9 +268,9 @@ describe('loginTo: разбор ответа воркера', () => {
     globalThis.XMLHttpRequest = FakeXhr as unknown as typeof XMLHttpRequest;
 
     try {
-      const result = await loginTo('https://gate.example', '2000');
+      const result = await loginTo('https://gate.example', '2000', publicJwk);
       expect(result).toEqual({ ok: true });
-      expect(localStorage.getItem(STORAGE_KEY)).toBe('via-xhr');
+      expect(localStorage.getItem(STORAGE_KEY)).toBe(validToken);
       expect(sent).toEqual([JSON.stringify({ code: '2000' })]);
     } finally {
       globalThis.XMLHttpRequest = realXhr;
@@ -253,7 +283,7 @@ describe('loginTo: разбор ответа воркера', () => {
       .mockResolvedValue(new Response(JSON.stringify({ error: 'invalid_code' }), { status: 401 }));
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-    const result = await loginTo('https://gate.example', 'wrong');
+    const result = await loginTo('https://gate.example', 'wrong', publicJwk);
 
     expect(result).toEqual({ ok: false, reason: 'invalid' });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -270,10 +300,10 @@ describe('loginTo: разбор ответа воркера', () => {
     let duringRequest: boolean | null = null;
     globalThis.fetch = vi.fn().mockImplementation(async () => {
       duringRequest = isLoginInFlight();
-      return new Response(JSON.stringify({ token: 't' }), { status: 200 });
+      return new Response(JSON.stringify({ token: validToken }), { status: 200 });
     }) as unknown as typeof fetch;
 
-    await loginTo('https://gate.example', '2000');
+    await loginTo('https://gate.example', '2000', publicJwk);
 
     expect(duringRequest).toBe(true);
     expect(isLoginInFlight()).toBe(false);
@@ -281,14 +311,14 @@ describe('loginTo: разбор ответа воркера', () => {
 
   it('после неудачного запроса счётчик тоже обнуляется', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
-    await loginTo('https://gate.example', 'x');
+    await loginTo('https://gate.example', 'x', publicJwk);
     expect(isLoginInFlight()).toBe(false);
   });
 
-  it('прочий код статуса (403, 500...) трактуется как invalid', async () => {
+  it('500 трактуется как временная серверная ошибка', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('', { status: 500 })) as unknown as typeof fetch;
-    const result = await loginTo('https://gate.example', 'x');
-    expect(result).toEqual({ ok: false, reason: 'invalid' });
+    const result = await loginTo('https://gate.example', 'x', publicJwk);
+    expect(result).toEqual({ ok: false, reason: 'server' });
   });
 });
 
@@ -368,9 +398,9 @@ describe('loginTo: сервер не смог подписать пропуск'
     expect(await loginTo('https://gate.example', '2000')).toEqual({ ok: false, reason: 'server' });
   });
 
-  it('прочие 500 по-прежнему invalid', async () => {
+  it('прочие 500 — ошибка сервера', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('', { status: 500 }));
-    expect(await loginTo('https://gate.example', 'x')).toEqual({ ok: false, reason: 'invalid' });
+    expect(await loginTo('https://gate.example', 'x')).toEqual({ ok: false, reason: 'server' });
   });
 
   it('возврат формой с lab-error=server — kind server', async () => {

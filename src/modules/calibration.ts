@@ -1,3 +1,4 @@
+import { reportStorageError } from '../core/storage-error';
 import type { AppContext, MountFn, Unmount } from '../main';
 import { Board } from '../board/board';
 import type { InputMode } from '../board/board';
@@ -89,7 +90,7 @@ function mountCalibrationView(
   paint();
 
   const save = () => {
-    void ctx.setCalibration({ ...cal });
+    void ctx.setCalibration({ ...cal }).catch(reportStorageError);
   };
 
   const sizeOut = el('span', { class: 'stat-v' }, [`${cal.boardSize} px`]);
@@ -110,6 +111,7 @@ function mountCalibrationView(
 
   const sizeInput = el('input', {
     type: 'range',
+    'aria-label': 'Размер доски',
     min: String(BOARD_SIZE_MIN),
     max: String(BOARD_SIZE_MAX),
     step: '8',
@@ -167,7 +169,7 @@ function mountCalibrationView(
     },
   );
 
-  const coordsCb = el('input', { type: 'checkbox' }) as HTMLInputElement;
+  const coordsCb = el('input', { type: 'checkbox', 'aria-label': 'Координаты по краям' }) as HTMLInputElement;
   coordsCb.checked = cal.coordinates;
   coordsCb.addEventListener('change', () => {
     cal.coordinates = coordsCb.checked;
@@ -237,6 +239,7 @@ function mountCalibrationView(
   const nameInput = el('input', {
     type: 'text',
     maxlength: '24',
+    'aria-label': 'Имя профиля',
     autocomplete: 'off',
     spellcheck: 'false',
   }) as HTMLInputElement;
@@ -263,7 +266,7 @@ function mountCalibrationView(
   const signOutBtn = el('button', { class: 'btn', type: 'button' }, ['Выйти']);
   signOutBtn.addEventListener('click', () => {
     if (!confirm('Выйти из профиля? Данные останутся на устройстве.')) return;
-    void ctx.signOut();
+    void ctx.signOut().catch(reportStorageError);
   });
 
   root.append(
@@ -313,7 +316,7 @@ function mountCalibrationView(
       'Готово, к тренировке',
     ]);
     doneBtn.addEventListener('click', () => {
-      void ctx.setCalibration({ ...cal }).then(() => opts.onDone?.());
+      void ctx.setCalibration({ ...cal }).then(() => opts.onDone?.()).catch(reportStorageError);
     });
     root.append(doneBtn);
   }

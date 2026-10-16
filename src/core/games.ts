@@ -12,6 +12,7 @@
 
 import { INITIAL_FEN } from './chess';
 import { getGame, putGame, uid } from './db';
+import { reportStorageError } from './storage-error';
 import type { Color } from './chess';
 
 /** Один сделанный ход: и UCI (для восстановления), и SAN (для чтения). */
@@ -217,16 +218,20 @@ export class GameAutosave {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pending: GameRecord | null = null;
   private chain: Promise<void> = Promise.resolve();
+  private lastWrite: Promise<void> = Promise.resolve();
+  private revision = 0;
+  private readonly retry = () => this.flush();
 
   constructor(private readonly delayMs = 120) {}
 
   /** Запомнить состояние и записать его в базу в ближайшее время. */
   save(game: GameRecord): void {
-    this.pending = { ...game, updatedAt: Date.now() };
+    this.revision++;
+    this.pending = structuredClone({ ...game, updatedAt: Date.now() });
     if (this.timer !== null) return;
     this.timer = globalThis.setTimeout(() => {
       this.timer = null;
-      void this.flush();
+      void this.flush().catch(error => reportStorageError(error, this.retry));
     }, this.delayMs);
   }
 
@@ -237,16 +242,25 @@ export class GameAutosave {
       this.timer = null;
     }
     const game = this.pending;
+    const revision = this.revision;
     this.pending = null;
-    if (!game) return this.chain;
+    if (!game) return this.lastWrite;
     // Последовательная цепочка: две параллельные записи одной партии
     // могли бы лечь в базу в обратном порядке.
-    this.chain = this.chain.then(() => putGame(game)).catch(() => undefined);
-    return this.chain;
+    const operation = this.chain.then(() => putGame(game)).catch(error => {
+      if (revision === this.revision && !this.pending) {
+        this.pending = game;
+        reportStorageError(error, this.retry);
+      }
+      throw error;
+    });
+    this.lastWrite = operation;
+    this.chain = operation.catch(() => undefined);
+    return operation;
   }
 
   dispose(): void {
-    void this.flush();
+    void this.flush().catch(error => reportStorageError(error, this.retry));
   }
 }
 

@@ -14,7 +14,7 @@
  * перехватывать всё подряд, мы перебьём маршруты Workbox и сломаем
  * офлайн. Поэтому берём на себя РОВНО запросы документа, а всё
  * остальное (предзагруженные файлы, движок, фигуры) пропускаем дальше,
- * к Workbox. Подресурсам заголовки и не нужны: они свои, того же
+ * к Workbox. Версионируемые ресурсы engine/piece/lc0 кешируются ниже. Подресурсам заголовки и не нужны: они свои, того же
  * происхождения, а COEP спрашивает только с чужих.
  *
  * Изоляция включается со второго открытия: service worker намеренно не
@@ -23,8 +23,15 @@
  * Пока изоляции нет, приложение просто не показывает Maia-ботов.
  */
 
-/** Свой кеш для lc0: Workbox эти запросы уже не увидит — см. ниже. */
-const LC0_CACHE = 'maia-lc0';
+// Each installation owns its caches; changed resource bytes create a new cache.
+const CACHE_SCOPE = `sciencechess:${self.registration.scope}:`;
+const CACHE_PREFIX = `${CACHE_SCOPE}${self.LAB_RESOURCE_VERSION || 'legacy'}:`;
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(names => Promise.all(
+    names.filter(name => name.startsWith(CACHE_SCOPE) && !name.startsWith(CACHE_PREFIX))
+      .map(name => caches.delete(name)),
+  )));
+});
 
 /**
  * Заголовки, без которых изолированная страница не примет ресурс.
@@ -49,19 +56,30 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Движок Maia: отдаём сами, чтобы дописать заголовки. Заодно кешируем —
-  // маршрут Workbox сюда уже не доберётся, обработчик респондит первым.
-  if (url.origin === self.location.origin && url.pathname.includes('/lc0/')) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(LC0_CACHE);
-        const hit = await cache.match(request);
-        if (hit) return isolateHeaders(hit);
-        const fresh = await fetch(request);
-        if (fresh.ok) await cache.put(request, fresh.clone());
-        return isolateHeaders(fresh);
-      })(),
-    );
+  const scopedPath = url.href.startsWith(self.registration.scope)
+    ? url.pathname.slice(new URL(self.registration.scope).pathname.length) : '';
+  const resource = /^(lc0|engine|piece)\//.exec(scopedPath)?.[1];
+  if (request.method === 'GET' && url.origin === self.location.origin && resource) {
+    event.respondWith((async () => {
+      let cache;
+      let response;
+      try {
+        cache = await caches.open(`${CACHE_PREFIX}${resource}`);
+        response = await cache.match(request);
+      } catch { /* Storage may be disabled; use the network in that case. */ }
+      if (!response) {
+        response = await fetch(request);
+        if (response.ok && cache) {
+          try {
+            await cache.put(request, response.clone());
+            const keys = await cache.keys();
+            const limit = resource === 'piece' ? 64 : 8;
+            await Promise.all(keys.slice(0, Math.max(0, keys.length - limit)).map(key => cache.delete(key)));
+          } catch { /* Cache quota must not prevent a fresh resource from loading. */ }
+        }
+      }
+      return resource === 'lc0' ? isolateHeaders(response) : response;
+    })());
     return;
   }
 

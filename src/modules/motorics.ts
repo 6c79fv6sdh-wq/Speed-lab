@@ -160,6 +160,7 @@ const SIGNAL_PALETTE: Record<SignalColor, [core: string, mid: string, deep: stri
 };
 
 export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
+  let disposed = false;
   const cal = ctx.calibration;
   // Считываем сразу на маунте: если позже переключиться на другую
   // вкладку и вернуться отдельно, флаг уже не должен сработать.
@@ -170,6 +171,11 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   const boardHost = el('div', { class: 'board-host' });
   const trace = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   trace.setAttribute('class', 'hl-trace');
+  trace.setAttribute('aria-hidden', 'true');
+  // Keep one path while moving: the glow needs no animation loop or new nodes.
+  const traceLine = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  traceLine.setAttribute('class', 'hl-trace-line');
+  trace.append(traceLine);
 
   const board = new Board(boardHost, {
     orientation: 'white',
@@ -261,23 +267,19 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function clearTrace(): void {
-    while (trace.firstChild) trace.removeChild(trace.firstChild);
+    traceLine.removeAttribute('points');
   }
 
   function drawTrace(): void {
-    clearTrace();
-    if (samples.length < 2) return;
+    if (samples.length < 2) {
+      clearTrace();
+      return;
+    }
     const rect = boardRect(board.wrap);
-    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    poly.setAttribute(
+    traceLine.setAttribute(
       'points',
       samples.map((s) => `${s.x - rect.left},${s.y - rect.top}`).join(' '),
     );
-    poly.setAttribute('fill', 'none');
-    poly.setAttribute('stroke', 'var(--accent2)');
-    poly.setAttribute('stroke-width', '2');
-    poly.setAttribute('stroke-opacity', '0.85');
-    trace.append(poly);
   }
 
   function nextRep(): void {
@@ -443,6 +445,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
    * этой кнопки не увидит.
    */
   function renderPlanNext(): void {
+    if (disposed) return;
     planNextHost.innerHTML = '';
     if (!cameFromPlan) return;
     const next = stepAfter('motorics', new Date());
@@ -1305,6 +1308,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   sigRenderLive();
 
   return () => {
+    disposed = true;
     board.wrap.removeEventListener('pointermove', onPointerMove);
     board.wrap.removeEventListener('pointerdown', onPointerDown);
     board.wrap.removeEventListener('pointerdown', onSignalPointerDown);

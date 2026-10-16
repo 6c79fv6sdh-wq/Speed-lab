@@ -59,25 +59,34 @@ export class Engine {
   private booting: Promise<void> | null = null;
   private currentElo: number | null = null;
   private currentMultiPv = 1;
+  private initialized = false;
+  private generation = 0;
+  private queue: Promise<unknown> = Promise.resolve();
+  private cancellations = new Set<() => void>();
 
   /** Готов ли движок принимать команды. */
   get ready(): boolean {
-    return this.worker !== null && this.booting === null;
+    return this.worker !== null && this.initialized;
   }
 
   /** Загружен ли WASM (первый вызов тянет 7 МБ). */
   async start(): Promise<void> {
-    if (this.worker && !this.booting) return;
+    if (this.ready) return;
     if (this.booting) return this.booting;
 
-    this.booting = (async () => {
+    const generation = this.generation;
+    const boot = (async () => {
       const worker = new Worker(engineUrl());
       this.worker = worker;
       worker.onmessage = (e: MessageEvent) => {
+        if (generation !== this.generation) return;
         const line = typeof e.data === 'string' ? e.data : String(e.data);
         this.buffer.push(line);
         if (this.buffer.length > 400) this.buffer.splice(0, 200);
         for (const l of [...this.listeners]) l(line);
+      };
+      worker.onerror = worker.onmessageerror = () => {
+        if (generation === this.generation) this.destroy();
       };
       this.send('uci');
       await this.until(/uciok/, 60000);
@@ -85,12 +94,18 @@ export class Engine {
       this.send('setoption name Hash value 16');
       this.send('isready');
       await this.until(/readyok/, 60000);
+      if (generation !== this.generation) throw new Error('Запуск движка отменён');
+      this.initialized = true;
     })();
+    this.booting = boot;
 
     try {
-      await this.booting;
+      await boot;
+    } catch (error) {
+      if (generation === this.generation) this.destroy();
+      throw error;
     } finally {
-      this.booting = null;
+      if (this.booting === boot) this.booting = null;
     }
   }
 
@@ -120,16 +135,46 @@ export class Engine {
           resolve(m);
         }
       };
+      const cancel = () => {
+        window.clearTimeout(timer);
+        off();
+        reject(new Error('Движок остановлен'));
+      };
       const off = () => {
+        this.cancellations.delete(cancel);
         const i = this.listeners.indexOf(fn);
         if (i >= 0) this.listeners.splice(i, 1);
       };
+      this.cancellations.add(cancel);
       this.listeners.push(fn);
     });
   }
 
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const generation = this.generation;
+    const result = this.queue.then(async () => {
+      if (generation !== this.generation) throw new Error('Поиск отменён');
+      try { return await operation(); }
+      catch (error) {
+        if (generation === this.generation) this.destroy();
+        throw error;
+      }
+    });
+    this.queue = result.catch(() => undefined);
+    return result;
+  }
+
+  setStrength(elo: number | null): Promise<void> { return this.enqueue(() => this.setStrengthNow(elo)); }
+  newGame(): Promise<void> { return this.enqueue(() => this.newGameNow()); }
+  bestMove(fen: string, limits: SearchLimits = {}): Promise<string | null> {
+    return this.enqueue(() => this.bestMoveNow(fen, limits));
+  }
+  analyse(fen: string, limits: SearchLimits & { multipv?: number } = {}): Promise<AnalysisLine[]> {
+    return this.enqueue(() => this.analyseNow(fen, limits));
+  }
+
   /** elo = null — играть в полную силу. */
-  async setStrength(elo: number | null): Promise<void> {
+  private async setStrengthNow(elo: number | null): Promise<void> {
     await this.start();
     if (this.currentElo === elo) return;
     this.buffer.length = 0;
@@ -144,7 +189,7 @@ export class Engine {
     this.currentElo = elo;
   }
 
-  async newGame(): Promise<void> {
+  private async newGameNow(): Promise<void> {
     await this.start();
     this.buffer.length = 0;
     this.send('ucinewgame');
@@ -153,9 +198,13 @@ export class Engine {
   }
 
   /** Лучший ход в позиции. Возвращает UCI либо null, если ходов нет. */
-  async bestMove(fen: string, limits: SearchLimits = {}): Promise<string | null> {
+  private async bestMoveNow(fen: string, limits: SearchLimits = {}): Promise<string | null> {
     await this.start();
     this.buffer.length = 0;
+    if (this.currentMultiPv !== 1) {
+      this.send('setoption name MultiPV value 1');
+      this.currentMultiPv = 1;
+    }
     this.send(`position fen ${fen}`);
     const limit = limits.depth ? `depth ${limits.depth}` : `movetime ${limits.movetimeMs ?? 100}`;
     this.send(`go ${limit}`);
@@ -174,7 +223,7 @@ export class Engine {
    * которые движок шлёт по ходу поиска, и на `bestmove` берём последнюю
    * (то есть самую свежую и глубокую) строку на каждый multipv-индекс.
    */
-  async analyse(fen: string, limits: SearchLimits & { multipv?: number } = {}): Promise<AnalysisLine[]> {
+  private async analyseNow(fen: string, limits: SearchLimits & { multipv?: number } = {}): Promise<AnalysisLine[]> {
     await this.start();
     const multipv = Math.max(1, limits.multipv ?? 1);
     if (multipv !== this.currentMultiPv) {
@@ -217,6 +266,11 @@ export class Engine {
   }
 
   destroy(): void {
+    this.generation++;
+    this.initialized = false;
+    for (const cancel of [...this.cancellations]) cancel();
+    this.booting = null;
+    this.currentMultiPv = 1;
     try {
       this.send('quit');
     } catch {

@@ -1,3 +1,4 @@
+import { MAX_BACKUP_BYTES } from '../core/backup';
 import type { AppContext, Unmount } from '../main';
 import { el, panel, table } from '../core/ui';
 import { fmtMs, fmtNum, fmtPct } from '../core/stats';
@@ -39,7 +40,8 @@ function summaryTable(rows: SummaryRow[], firstHeader: string): HTMLElement {
   );
 }
 
-export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
+export function mountData(root: HTMLElement, ctx: AppContext): Unmount {
+  let disposed = false;
   root.append(el('h1', {}, ['Прогресс']));
 
   const overviewHost = el('div', {});
@@ -51,7 +53,14 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
   const ioStatus = el('div', { class: 'prompt' }, ['']);
   const jsonArea = el('textarea', {
     placeholder: 'Сюда попадает экспорт. Сюда же можно вставить JSON для импорта.',
+    'aria-label': 'Резервная копия истории в JSON',
   }) as HTMLTextAreaElement;
+
+  function showError(error: unknown): void {
+    if (disposed) return;
+    ioStatus.textContent = `Не удалось выполнить действие: ${error instanceof Error ? error.message : String(error)}`;
+    ioStatus.className = 'prompt verdict-bad';
+  }
 
   async function render(): Promise<void> {
     const [measurements, sessions, nodes] = await Promise.all([
@@ -59,8 +68,9 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
       allSessions(),
       allOpeningNodes(),
     ]);
+    if (disposed) return;
     renderOverview(measurements);
-    void renderStorage();
+    void renderStorage().catch(showError);
     renderPerModule(measurements);
     renderMotorics(measurements);
     renderOpenings(nodes);
@@ -69,6 +79,7 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
 
   async function renderStorage(): Promise<void> {
     const st = await storageStatus();
+    if (disposed) return;
     const mb = (v: number | null) => (v === null ? '—' : `${(v / 1024 / 1024).toFixed(1)} МБ`);
     storageHost.innerHTML = '';
     storageHost.append(
@@ -88,12 +99,12 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
     if (st.supported && !st.persistent) {
       const ask = el('button', { class: 'btn', type: 'button' }, ['Запросить постоянное хранение']);
       ask.addEventListener('click', () => {
-        void requestPersistentStorage().then(() => renderStorage());
+        void requestPersistentStorage().then(() => renderStorage()).catch(showError);
       });
       storageHost.append(
         ask,
         el('p', { class: 'hint' }, [
-          'Пока хранение не постоянное, браузер вправе удалить замеры сам — Safari на iOS делает это после семи дней без визитов. Установка на Home Screen снимает это ограничение.',
+          'Браузер может удалить локальную историю. Скачивай резервную копию, особенно перед сменой устройства или адреса сайта.',
         ]),
       );
     }
@@ -187,9 +198,9 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
     void (async () => {
       const bundle = await exportBundle();
       jsonArea.value = JSON.stringify(bundle, null, 2);
-      ioStatus.textContent = `Выгружено: сессий ${bundle.sessions.length}, замеров ${bundle.measurements.length}.`;
+      ioStatus.textContent = `Выгружено: сессий ${bundle.sessions.length}, замеров ${bundle.measurements.length}, партий ${bundle.games.length}.`;
       ioStatus.className = 'prompt verdict-ok';
-    })();
+    })().catch(showError);
   });
 
   const downloadBtn = el('button', { class: 'btn', type: 'button' }, ['Скачать файл']);
@@ -204,10 +215,10 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
       document.body.append(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       ioStatus.textContent = 'Файл отдан браузеру.';
       ioStatus.className = 'prompt verdict-ok';
-    })();
+    })().catch(showError);
   });
 
   const importAreaBtn = el('button', { class: 'btn primary', type: 'button' }, ['Импорт из поля']);
@@ -220,10 +231,16 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
   fileInput.addEventListener('change', () => {
     const file = fileInput.files?.[0];
     if (!file) return;
+    if (file.size > MAX_BACKUP_BYTES) {
+      showError(new Error('Файл больше 30 МБ'));
+      fileInput.value = '';
+      return;
+    }
     void file.text().then((text) => {
+      if (disposed) return;
       jsonArea.value = text;
       return doImport(text);
-    });
+    }).catch(showError);
     fileInput.value = '';
   });
 
@@ -234,7 +251,8 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
     try {
       const bundle = parseBundle(text);
       const res = await importBundle(bundle);
-      ioStatus.textContent = `Импортировано: сессий ${res.sessions}, замеров ${res.measurements}, узлов ${res.openingNodes}. Настройки применены.`;
+      await ctx.setCalibration(bundle.calibration, false);
+      ioStatus.textContent = `В твой профиль импортировано: сессий ${res.sessions}, замеров ${res.measurements}, узлов ${res.openingNodes}, партий ${res.games}. Настройки применены.`;
       ioStatus.className = 'prompt verdict-ok';
       await render();
     } catch (e) {
@@ -262,7 +280,7 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
       ioStatus.textContent = 'Измерения удалены. Настройки калибровки сохранены.';
       ioStatus.className = 'prompt verdict-ok';
       await render();
-    })();
+    })().catch(showError);
   });
 
   root.append(
@@ -278,12 +296,13 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
       ioStatus,
       el('div', { class: 'row' }, [clearBtn]),
       el('p', { class: 'hint' }, [
+        'Копия включает историю и партии текущего профиля. Импорт переносит её в твой активный профиль и применяет настройки из файла. ',
         'Очистка удаляет сессии, замеры и статистику дебютных узлов. Настройки калибровки остаются.',
       ]),
     ]),
   );
 
-  void render();
+  void render().catch(showError);
 
-  return () => {};
+  return () => { disposed = true; };
 }

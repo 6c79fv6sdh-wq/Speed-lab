@@ -40,6 +40,7 @@ interface NodeAttempt {
 }
 
 export function mountOpenings(root: HTMLElement, ctx: AppContext): Unmount {
+  let disposed = false;
   const cal = ctx.calibration;
   let repertoire: Repertoire = REPERTOIRES[0];
   const cameFromPlan = consumePlanNavigation();
@@ -285,6 +286,7 @@ export function mountOpenings(root: HTMLElement, ctx: AppContext): Unmount {
 
   /** Часть дневной тренировки «Сегодня» — см. пояснение в motorics.ts. */
   function renderPlanNext(): void {
+    if (disposed) return;
     planNextHost.innerHTML = '';
     if (!cameFromPlan) return;
     const next = stepAfter('openings', new Date());
@@ -368,6 +370,7 @@ export function mountOpenings(root: HTMLElement, ctx: AppContext): Unmount {
   void renderHitches();
 
   return () => {
+    disposed = true;
     clearTimers();
     if (session) void finish();
     board.destroy();

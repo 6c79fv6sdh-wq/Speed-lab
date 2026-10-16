@@ -456,7 +456,7 @@ h3 {
 
 label {
   font-size: 13px;
-  opacity: 0.85;
+  opacity: 0.6;
 }
 
 /*
@@ -1124,7 +1124,7 @@ code {
    подсветке и почти сливается с ней — поднимаем контраст именно здесь. */
 .bot-avatar.active .bot-avatar-fallback {
   color: var(--fg-strong);
-  opacity: 0.85;
+  opacity: 0.6;
 }
 
 /* --- Витрина Lab (без доступа) ---------------------------------------
@@ -1538,7 +1538,7 @@ code {
 .metric-note {
   font-size: 12px;
   color: var(--fg);
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 /* Сухая расшифровка под рядом показателей: объём сессии мелким шрифтом,
@@ -2360,3 +2360,5 @@ code {
     margin-top: 4vh;
   }
 }
+
+#storage-error { position: sticky; bottom: 0; z-index: 100; padding: 16px; background: #3c1717; color: #fff; display: flex; gap: 12px; flex-wrap: wrap; border: 1px solid #dc8585; }

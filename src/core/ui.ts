@@ -32,7 +32,10 @@ export function segmented<T extends string>(
   const root = el('div', { class: 'seg' });
   const buttons = new Map<T, HTMLButtonElement>();
   const set = (v: T) => {
-    for (const [k, b] of buttons) b.classList.toggle('active', k === v);
+    for (const [k, b] of buttons) {
+      b.classList.toggle('active', k === v);
+      b.setAttribute('aria-pressed', String(k === v));
+    }
   };
   for (const opt of options) {
     const b = el('button', { class: 'seg-btn', type: 'button' }, [opt.label]);
@@ -96,6 +99,6 @@ export function table(headers: string[], rows: string[][]): HTMLElement {
     tbody.append(tr);
   }
   t.append(thead, tbody);
-  const wrap = el('div', { class: 'tbl-wrap' }, [t]);
+  const wrap = el('div', { class: 'tbl-wrap', tabindex: '0', role: 'region', 'aria-label': headers.join(', ') }, [t]);
   return wrap;
 }

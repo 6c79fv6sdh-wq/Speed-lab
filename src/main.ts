@@ -31,7 +31,8 @@ import { mountData } from './modules/data';
 
 export interface AppContext {
   calibration: Calibration;
-  setCalibration(c: Calibration): Promise<void>;
+  /** persist=false applies settings already committed by an atomic backup import. */
+  setCalibration(c: Calibration, persist?: boolean): Promise<void>;
   /** Кто сейчас занимается. Все замеры и партии пишутся на него. */
   profile: Profile;
   /** Сменить имя своего профиля (переименование, не переключение). */
@@ -144,8 +145,7 @@ async function boot(): Promise<void> {
   const secondaryRow = document.getElementById('tabs-secondary') as HTMLElement;
   const view = document.getElementById('view') as HTMLElement;
 
-  // Просим постоянное хранение до первых замеров, чтобы браузер
-  // не вычистил базу через неделю простоя.
+  // Просим постоянное хранение; решение и гарантии зависят от браузера.
   void requestPersistentStorage();
 
   // Кто занимается. Без профиля дальше не идём: к нему привязаны и
@@ -177,11 +177,11 @@ async function boot(): Promise<void> {
   const ctx: AppContext = {
     calibration,
     profile: signedIn,
-    async setCalibration(c: Calibration) {
+    async setCalibration(c: Calibration, persist = true) {
+      if (persist) await saveCalibration(c);
       ctx.calibration = c;
       calibration = c;
       applyTheme(c.boardTheme, c.pieceSet);
-      await saveCalibration(c);
     },
     async setProfileName(name: string) {
       ctx.profile = await renameProfile(ctx.profile, name);
@@ -262,7 +262,7 @@ async function boot(): Promise<void> {
   document.addEventListener(
     'gesturestart',
     (e) => {
-      e.preventDefault();
+      if ((e.target as Element | null)?.closest('.hl-board')) e.preventDefault();
     },
     { passive: false },
   );
@@ -279,7 +279,8 @@ async function boot(): Promise<void> {
     'touchend',
     (e) => {
       const now = Date.now();
-      if (now - lastTouchEnd < 320) e.preventDefault();
+      const onBoard = (e.target as Element | null)?.closest('.hl-board');
+      if (onBoard && now - lastTouchEnd < 320) e.preventDefault();
       lastTouchEnd = now;
     },
     { passive: false },
@@ -335,23 +336,34 @@ watchForUpdate();
 // (ECDSA, см. core/access.ts), а не простым сравнением строк — но
 // полностью офлайн, сети эта проверка не требует, задержка на глаз не
 // заметна.
+function showBootError(error: unknown): void {
+  console.error('Lab startup failed', error);
+  const host = document.getElementById('view');
+  if (!host) return;
+  host.replaceChildren();
+  const message = document.createElement('p');
+  message.setAttribute('role', 'alert');
+  message.textContent = 'Не удалось открыть Lab. Проверь, что браузер разрешает хранение данных сайта, и перезагрузи страницу.';
+  host.append(message);
+}
+
 void (async () => {
   // Сначала — вернулись ли мы сюда запасным входом (переходом через
   // воркер): тогда в #-части адреса лежит свежий токен или причина
   // отказа. consumeLoginFromHash сразу вычищает адрес.
   const fromHash = await consumeLoginFromHash();
   if (fromHash.kind === 'ok' || (await hasAccess())) {
-    void boot();
+    void boot().catch(showBootError);
     return;
   }
 
   let message: string | undefined;
   if (fromHash.kind === 'invalid') message = 'Код не подошёл. Проверьте и попробуйте ещё раз.';
   if (fromHash.kind === 'server')
-    message = 'Код верный, но сервер не смог выдать пропуск: проверь ключ подписи.';
+    message = 'Сервис входа временно недоступен. Попробуй позже или напиши преподавателю.';
   if (fromHash.kind === 'rate_limited') {
     const min = Math.ceil(fromHash.retryAfterMs / 60000);
     message = `Слишком много попыток. Попробуй через ${min} мин.`;
   }
-  mountGate(() => void boot(), message);
-})();
+  mountGate(() => void boot().catch(showBootError), message);
+})().catch(showBootError);

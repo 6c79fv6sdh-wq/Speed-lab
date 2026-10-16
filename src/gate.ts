@@ -47,7 +47,7 @@ const SLIDES: Slide[] = [
   {
     src: './showcase/progress.webp',
     title: 'Прогресс',
-    caption: 'Каждый замер сохраняется: время, точность и динамика по неделям.',
+    caption: 'Каждый замер сохраняется: время, точность и результаты по режимам.',
   },
 ];
 
@@ -55,6 +55,7 @@ function buildGallery(slides: Slide[]): HTMLElement {
   const viewport = el('div', {
     class: 'carousel-viewport',
     role: 'region',
+    tabindex: '0',
     'aria-label': 'Скриншоты режимов Lab',
   });
 
@@ -161,11 +162,13 @@ function buildLoginDialog(onUnlock: () => void): {
       try {
         if ('serviceWorker' in navigator) {
           const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.unregister()));
+          const scope = new URL('./', document.baseURI).href;
+          await Promise.all(regs.filter(r => r.scope === scope).map((r) => r.unregister()));
         }
         if ('caches' in window) {
           const names = await caches.keys();
-          await Promise.all(names.map((n) => caches.delete(n)));
+          const scope = new URL('./', document.baseURI).href;
+          await Promise.all(names.filter(n => n.startsWith(`sciencechess:${scope}:`) || (n.startsWith('workbox-precache-') && n.includes(scope))).map(n => caches.delete(n)));
         }
       } catch {
         // Не вышло — всё равно перезагружаемся: хуже точно не станет.
@@ -259,7 +262,7 @@ function buildLoginDialog(onUnlock: () => void): {
           resetBtn.hidden = false;
           break;
         case 'server':
-          showError('Код верный, но сервер не смог выдать пропуск: проверь ключ подписи.');
+          showError('Сервис входа временно недоступен. Попробуй позже или напиши преподавателю.');
           break;
         case 'not_configured':
           showError('Вход временно недоступен, зайди позже.');
@@ -320,7 +323,7 @@ interface DemoMetric {
 }
 
 const DEMO_METRICS: DemoMetric[] = [
-  { label: 'Время решения', value: '640 мс', note: 'медиана за неделю' },
+  { label: 'Время решения', value: '640 мс', note: 'медиана попыток' },
   { label: 'Точность', value: '92%', note: 'верных решений из всех' },
   { label: 'Динамика', value: '−18%', note: 'время решения за месяц' },
 ];
@@ -341,7 +344,7 @@ function buildProgressBlock(): HTMLElement {
   return el('div', {}, [
     el('p', { class: 'showcase-lead' }, [
       'Каждое задание замеряется и сохраняется на устройстве: сколько заняло ',
-      'решение, что решено верно, как это меняется от недели к неделе. ',
+      'решение, что решено верно, как меняются результаты упражнений. ',
       'Тренировка не «прошла и забылась» — она видна в цифрах.',
     ]),
     metrics,

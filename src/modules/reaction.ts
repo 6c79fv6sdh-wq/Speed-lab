@@ -177,6 +177,7 @@ interface Attempt {
 }
 
 export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
+  let disposed = false;
   const cal = ctx.calibration;
   let exercise: ReactionExercise = 'free-capture';
   let exposure: Exposure = 'unlimited';
@@ -552,6 +553,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
 
   /** Часть дневной тренировки «Сегодня» — см. пояснение в motorics.ts. */
   function renderPlanNext(): void {
+    if (disposed) return;
     planNextHost.innerHTML = '';
     if (!cameFromPlan) return;
     const next = stepAfter('reaction', new Date());
@@ -1548,6 +1550,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   renderLive();
 
   return () => {
+    disposed = true;
     clearTimers();
     board.wrap.removeEventListener('pointerdown', onPointerDown);
     if (ksFeedbackTimer !== null) window.clearTimeout(ksFeedbackTimer);

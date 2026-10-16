@@ -215,6 +215,16 @@ cg-board {
   z-index: 10;
 }
 
+/* Narrow amber core and a soft orange halo; no flashing or moving effects. */
+.hl-trace-line {
+  fill: none;
+  stroke: #ffd08a;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1px #ff7800) drop-shadow(0 0 3px rgba(255, 104, 0, 0.65));
+}
+
 /*
  * Световой сигнал упражнения «Сигнал» (modules/motorics-signal.ts).
  * Смонтирован один раз на весь срок жизни экрана — между сигналами JS

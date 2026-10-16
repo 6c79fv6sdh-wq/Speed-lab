@@ -79,6 +79,7 @@ export function shuffle<T>(items: T[], rnd: () => number): T[] {
 }
 
 export function mountPremove(root: HTMLElement, ctx: AppContext): Unmount {
+  let disposed = false;
   const cal = ctx.calibration;
   let mode: PremoveMode = 'forced-capture';
   let difficulty: Difficulty = 'pro';
@@ -538,6 +539,7 @@ export function mountPremove(root: HTMLElement, ctx: AppContext): Unmount {
 
   /** Часть дневной тренировки «Сегодня» — см. пояснение в motorics.ts. */
   function renderPlanNext(): void {
+    if (disposed) return;
     planNextHost.innerHTML = '';
     if (!cameFromPlan) return;
     const next = stepAfter('premove', new Date());
@@ -671,6 +673,7 @@ export function mountPremove(root: HTMLElement, ctx: AppContext): Unmount {
   renderLive();
 
   return () => {
+    disposed = true;
     clearTimers();
     window.removeEventListener('keydown', onKey);
     boardHost.removeEventListener('contextmenu', onContextMenu);

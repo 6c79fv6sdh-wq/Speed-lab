@@ -44,6 +44,8 @@ function fetchNet(file: string): Promise<Uint8Array> {
       })
       .then((b) => new Uint8Array(b));
     netCache.set(file, p);
+    const loading = p;
+    void p.catch(() => { if (netCache.get(file) === loading) netCache.delete(file); });
   }
   return p;
 }

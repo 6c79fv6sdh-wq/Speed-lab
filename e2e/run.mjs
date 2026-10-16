@@ -6,7 +6,7 @@
  * страницы должна появиться сама со второго открытия, и только после неё
  * становится доступна Maia.
  */
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -49,10 +49,13 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? '  OK ' : 'FAIL '} ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+let browser;
+try {
+browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined });
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
 const page = await ctx.newPage();
-page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
+const runtimeErrors = [];
+page.on('pageerror', (e) => { runtimeErrors.push(e.message); console.log('PAGEERROR:', e.message); });
 page.on('console', (m) => {
   if (m.type() === 'error') console.log('CONSOLE-ERR:', m.text());
 });
@@ -191,11 +194,28 @@ await page.locator('#tabs .icon-btn[aria-label="Настройки"]').click();
 await page.waitForTimeout(500);
 check('в настройках есть свой профиль', (await page.locator('.panel', { hasText: 'ПРОФИЛЬ' }).count()) > 0);
 
+// Mobile navigation must neither overflow nor be redirected by a disposed exercise.
+await page.setViewportSize({ width: 390, height: 844 });
+for (const route of ['today', 'motorics', 'premove', 'reaction', 'openings', 'scramble', 'games', 'data', 'calibration']) {
+  await page.evaluate(route => { location.hash = `#${route}`; }, route);
+  await page.waitForTimeout(200);
+  if (['motorics', 'premove', 'reaction', 'openings'].includes(route)) {
+    await page.getByRole('button', { name: 'Старт', exact: true }).filter({ visible: true }).first().click();
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: 'Прервать', exact: true }).filter({ visible: true }).first().click();
+  }
+  const state = await page.evaluate(() => ({ route: location.hash, overflow: document.documentElement.scrollWidth > innerWidth }));
+  check(`мобильный экран ${route}`, state.route === `#${route}` && !state.overflow);
+}
+check('в браузере нет ошибок JavaScript', runtimeErrors.length === 0, runtimeErrors.join('; '));
+
 console.log('\n──────────────────────────────');
 const failed = results.filter((r) => !r.ok);
 console.log(`${results.length - failed.length}/${results.length} проверок пройдено`);
 if (failed.length) console.log('Провалено:\n' + failed.map((f) => `  • ${f.name}`).join('\n'));
 
-await browser.close();
-server.close();
-process.exit(failed.length ? 1 : 0);
+process.exitCode = failed.length ? 1 : 0;
+} finally {
+  await browser?.close();
+  await new Promise(resolve => server.close(resolve));
+}

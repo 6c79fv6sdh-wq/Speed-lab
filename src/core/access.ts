@@ -104,7 +104,7 @@ export async function verifyTokenWithKey(token: string, jwk: JsonWebKey | null):
     );
     if (!ok) return false;
     const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(payloadB64))) as Partial<TokenPayload>;
-    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
+    return typeof payload.exp === 'number' && Number.isFinite(payload.exp) && payload.exp * 1000 > Date.now();
   } catch {
     // Битый токен, чужой формат JSON — в любом случае просто «доступа
     // нет», а не падение приложения.
@@ -209,10 +209,12 @@ function postViaXhr(url: string, body: string): Promise<RawResponse> {
     }
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
+    xhr.timeout = 5000;
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText });
     xhr.onerror = () => reject(new Error('XHR: сетевая ошибка'));
     xhr.ontimeout = () => reject(new Error('XHR: таймаут'));
+    xhr.onabort = () => reject(new Error('XHR: запрос отменён'));
     xhr.send(body);
   });
 }
@@ -236,22 +238,25 @@ function postViaXhr(url: string, body: string): Promise<RawResponse> {
  * 429, 500) — это уже ответ, повторять запрос незачем.
  */
 async function postToWorker(url: string, body: string): Promise<RawResponse> {
-  try {
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
-    return { status: r.status, text: await r.text() };
-  } catch {
-    // дальше — способ 2
-  }
-
-  try {
-    const r = await fetch(url, { method: 'POST', body });
-    return { status: r.status, text: await r.text() };
-  } catch {
-    // дальше — способ 3
+  for (const headers of [{ 'Content-Type': 'application/json' }, undefined]) {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // The deadline includes response body reading, not only the headers.
+      return await Promise.race([
+        (async () => {
+          const r = await fetch(url, { method: 'POST', body, signal: controller.signal, ...(headers ? { headers } : {}) });
+          return { status: r.status, text: await r.text() };
+        })(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => { controller.abort(); reject(new Error('Таймаут входа')); }, 5000);
+        }),
+      ]);
+    } catch {
+      // Try the next transport only after a network error/deadline.
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   return postViaXhr(url, body);
@@ -271,7 +276,7 @@ function parseJson(text: string): Record<string, unknown> | null {
  * протестировать разбор ответа (200/401/429/битый JSON/обрыв сети) без
  * настоящего WORKER_URL, который до деплоя пуст намеренно.
  */
-export async function loginTo(workerUrl: string, code: string): Promise<LoginResult> {
+export async function loginTo(workerUrl: string, code: string, publicKey = PUBLIC_KEY_JWK): Promise<LoginResult> {
   if (!workerUrl) return { ok: false, reason: 'not_configured' };
 
   inFlight++;
@@ -286,19 +291,21 @@ export async function loginTo(workerUrl: string, code: string): Promise<LoginRes
     if (res.status === 200) {
       const token = parseJson(res.text)?.token;
       if (typeof token !== 'string') return { ok: false, reason: 'network' };
+      if (!(await verifyTokenWithKey(token, publicKey))) return { ok: false, reason: 'server' };
       storeToken(token);
       return { ok: true };
     }
 
     if (res.status === 429) {
       const retry = parseJson(res.text)?.retryAfterMs;
-      return { ok: false, reason: 'rate_limited', retryAfterMs: typeof retry === 'number' ? retry : 60_000 };
+      return { ok: false, reason: 'rate_limited', retryAfterMs: typeof retry === 'number' && Number.isFinite(retry) && retry > 0 ? retry : 60_000 };
     }
 
     // Код верный, но воркер не смог подписать пропуск. Отдельная причина:
     // иначе это выглядело бы как «код не подошёл», и владелец сайта искал
     // бы проблему не там, где она есть (в секрете с ключом подписи).
     if (parseJson(res.text)?.error === 'signing_key_invalid') return { ok: false, reason: 'server' };
+    if (res.status >= 500) return { ok: false, reason: 'server' };
 
     return { ok: false, reason: 'invalid' };
   } finally {
