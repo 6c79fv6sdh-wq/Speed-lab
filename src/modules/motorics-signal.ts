@@ -33,7 +33,7 @@ export const DEFAULT_SIGNAL_TIMINGS: SignalTimings = {
   maxGapMs: 2200,
   showMs: 250,
   reactionWindowMs: 700,
-  targetShare: 0.3,
+  targetShare: 0.5,
 };
 
 /** Сколько стимулов в сессии. */
