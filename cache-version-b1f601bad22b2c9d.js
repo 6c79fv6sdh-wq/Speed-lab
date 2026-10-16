@@ -1,0 +1,1 @@
+self.LAB_RESOURCE_VERSION="b1f601bad22b2c9d";
