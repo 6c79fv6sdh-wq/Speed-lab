@@ -184,16 +184,24 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   const fireParticles = Array.from({ length: MAX_FIRE_PARTICLES }, (_, i) => {
     const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const spark = i % 3 === 2;
-    const particle = document.createElementNS('http://www.w3.org/2000/svg', spark ? 'circle' : 'path');
+    const particle = document.createElementNS('http://www.w3.org/2000/svg', spark ? 'circle' : 'g');
     particle.setAttribute('class', spark ? 'hl-trace-spark' : 'hl-trace-flame');
     if (spark) {
       particle.setAttribute('r', String(0.8 + (i % 2) * 0.4));
       particle.setAttribute('cy', String(-8 - i % 5));
     } else {
-      particle.setAttribute('d', 'M-2 0 C-5-3-1-6-1-9 C0-6 4-5 3-2 C2 0 0 1-2 0Z');
+      const shape = 'M0 1 C-7 0-8-6-4-11 C-2-14 1-16 0-22 C8-16 10-9 6-4 C4-1 2 1 0 1Z';
+      const outer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      outer.setAttribute('d', shape);
+      outer.setAttribute('fill', '#ff670b');
+      const core = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      core.setAttribute('d', shape);
+      core.setAttribute('fill', '#ffe099');
+      core.setAttribute('transform', 'translate(0 -1) scale(0.42 0.62)');
+      particle.append(outer, core);
     }
     particle.style.animationDelay = `${-i * 0.173}s`;
-    particle.style.animationDuration = `${1.1 + (i % 5) * 0.19}s`;
+    particle.style.animationDuration = `${0.85 + (i % 5) * 0.17}s`;
     anchor.setAttribute('display', 'none');
     anchor.append(particle);
     fire.append(anchor);
@@ -310,8 +318,9 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       const anchor = anchors[i];
       if (!anchor) { particle.setAttribute('display', 'none'); continue; }
       const scale = (1 - i / MAX_FIRE_PARTICLES * 0.45) * (0.75 + ((i * 7) % 11) / 20);
-      const side = i % 2 === 0 ? 1 : -1;
-      particle.setAttribute('transform', `translate(${anchor.x - rect.left} ${anchor.y - rect.top}) rotate(${anchor.angle}) scale(${scale} ${scale * side})`);
+      // Heat rises in screen space; mirrored side branches looked like leaves.
+      const lean = ((i * 7) % 17) - 8;
+      particle.setAttribute('transform', `translate(${anchor.x - rect.left} ${anchor.y - rect.top}) rotate(${lean}) scale(${scale})`);
       particle.removeAttribute('display');
     }
   }
