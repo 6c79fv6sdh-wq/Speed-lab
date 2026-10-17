@@ -595,13 +595,13 @@ service worker скачает всё в кеш, после этого прило
 | Задачи «висящая фигура» | `src/data/puzzles-hanging.ts` |
 | Исходный PGN этих задач | `data/lichess-hanging-piece-200-white.pgn` |
 | Задачи «мат в один ход» | `src/data/puzzles-mate.ts` |
-| Исходный PGN этих задач | `data/lichess-mate-in-1-320-white.pgn` |
+| Исходный JSON 500 задач (250 белыми / 250 чёрными) | `data/mate-in-1-500.json` |
 
 Задачи импортируются скриптами:
 
 ```bash
 node tools/import-puzzles.mjs data/lichess-hanging-piece-200-white.pgn > src/data/puzzles-hanging.ts
-node tools/import-mate-puzzles.mjs data/lichess-mate-in-1-320-white.pgn > src/data/puzzles-mate.ts
+node tools/import-mate-pack.mjs data/mate-in-1-500.json > src/data/puzzles-mate.ts
 node tools/import-premove-forced.mjs data/lichess-safe-premove-200-white.json > src/data/premove-forced-imported.ts
 ```
 
@@ -644,7 +644,7 @@ node tools/import-premove-forced.mjs data/lichess-safe-premove-200-white.json > 
 3. **Премувы** — форсированное взятие (в т.ч. 200 реальных задач Lichess),
    safe/unsafe, отмена.
 4. **Тактика** — «Что висит?» (200 реальных задач Lichess с темой
-   hangingPiece), «Мат в 1» (320 задач Lichess), «Шах», «Откуда»/«Куда»
+   hangingPiece), «Мат в 1» (500 задач, случайная очередь без повторов в серии), «Шах», «Откуда»/«Куда»
    (упражнение на память о ходе соперника, разделённое на два — раньше
    направление вопроса выбиралось случайно внутри одного упражнения).
    «Сколько видна позиция»: без лимита / 500 / 300 / 200 мс; «Время на ответ»:

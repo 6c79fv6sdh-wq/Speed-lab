@@ -5,7 +5,7 @@ import { Session, consumePlanNavigation, markPlanNavigation, measuredCalibration
 import { allSessions } from '../core/db';
 import { fmtMs, fmtPct, fmtSec, median, p90, plural } from '../core/stats';
 import { stepAfter } from './today-plan';
-import { checkedColor, dests, fenOf, moveFromUci, posFromFen, type Color } from '../core/chess';
+import { checkedColor, dests, fenOf, moveFromKeys, uciOf, moveFromUci, posFromFen, type Color } from '../core/chess';
 import {
   deltaAnswer,
   generateDeltaTask,
@@ -418,7 +418,8 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   function onMove(orig: Key, dest: Key): void {
     if (!accepting || !current) return;
     accepting = false;
-    const uci = `${orig}${dest}`;
+    const move = exercise === 'mate-in-1' ? moveFromKeys(current.pos, orig, dest) : undefined;
+    const uci = move ? uciOf(move) : `${orig}${dest}`;
     const correct = current.solutions.some((s) => s.uci === uci);
     const t = performance.now();
 

@@ -330,7 +330,10 @@ export function taskFromPuzzle(p: HangingPuzzle): PuzzleTask {
 
 /** Превращает задачу «мат в один ход» в задание упражнения. */
 export function taskFromMatePuzzle(p: MatePuzzle): PuzzleTask {
-  return taskFromSolution(p.fen, p.id, p.uci, p.san);
+  const task = taskFromSolution(p.fen, p.id, p.uci, p.san);
+  // Keep the promotion suffix for the five promotion mates in this pack.
+  task.solutions[0].uci = p.uci;
+  return task;
 }
 
 /** Превращает задачу «безопасный шах» в задание упражнения. */
