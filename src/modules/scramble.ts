@@ -184,8 +184,12 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
       lastMove,
       check: checkedColor(pos),
       viewOnly: !running,
+      // A tap/drag started while the bot thought must survive its reply.
+      selected: running ? board.api.state.selected : undefined,
     });
-    board.api.set({ premovable: { enabled: running && !userToMove } });
+    // Chessground checks turnColor itself. Keeping this enabled also permits
+    // the next premove before its deferred onMove callback reaches our model.
+    board.api.set({ premovable: { enabled: running } });
   }
 
   function renderClocks(): void {
@@ -401,9 +405,9 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
     userMoveStartedAt = performance.now();
     promptEl.textContent = 'Твой ход.';
     if (checkGameEnd()) return;
-    later(() => {
-      if (running && pos.turn === userColor) board.playPremove();
-    }, 20);
+    // Consume the queue before another input can replace/cancel it.
+    // Chessground validates against the newly computed legal destinations.
+    board.playPremove();
   }
 
   function renderLive(): void {
@@ -708,11 +712,11 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
         boardHost,
         el('div', { class: 'side' }, [
           el('div', { class: 'clock-row' }, [
+            el('div', { class: 'col grow' }, [el('span', { class: 'clock-label' }, ['Ты']), userClockEl]),
             el('div', { class: 'col grow' }, [
               el('span', { class: 'clock-label' }, ['Соперник']),
               botClockEl,
             ]),
-            el('div', { class: 'col grow' }, [el('span', { class: 'clock-label' }, ['Ты']), userClockEl]),
           ]),
           promptEl,
           liveStats,

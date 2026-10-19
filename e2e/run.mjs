@@ -130,6 +130,18 @@ await page.waitForFunction(
 ).catch(() => {});
 const prompt = await page.locator('.prompt').first().innerText();
 check('партия началась', /Твой ход/.test(prompt), prompt);
+async function ownClockFirst() {
+  return page.locator('.clock-row > .col').evaluateAll(cols => {
+    if (cols.length !== 2) return false;
+    const [own, opponent] = cols;
+    const a = own.getBoundingClientRect(), b = opponent.getBoundingClientRect();
+    return own.querySelector('.clock-label')?.textContent === 'Ты' &&
+      opponent.querySelector('.clock-label')?.textContent === 'Соперник' &&
+      a.x < b.x && Math.abs(a.y - b.y) < 2;
+  });
+}
+
+check('свои часы слева, часы соперника справа', await ownClockFirst());
 
 // Делаем ход e2e4 кликом по доске.
 async function clickSquare(square) {
@@ -141,7 +153,10 @@ async function clickSquare(square) {
 await clickSquare('e2');
 await page.waitForTimeout(150);
 await clickSquare('e4');
-await page.waitForTimeout(4000);
+// Queue a legal knight move while the real Maia opponent is thinking.
+await clickSquare('g1');
+await clickSquare('f3');
+await page.waitForTimeout(5000);
 
 const movesPlayed = await page.evaluate(async () => {
   const db = await new Promise((res, rej) => {
@@ -167,6 +182,7 @@ const g = movesPlayed[0];
 check('партия сохранилась в базу сама', !!g, g ? `${g.bot} · ${g.tc}` : 'записи нет');
 check('ход игрока записан', !!g && g.moves[0] === 'e4', g?.moves.join(' '));
 check('бот ответил своим ходом', !!g && g.moves.length >= 2, g?.moves.join(' '));
+check('премув выполнен после ответа соперника', !!g && g.moves[2] === 'Nf3', g?.moves.join(' '));
 check('PGN собран с тегами', !!g && g.pgn.includes('[White ') && g.pgn.includes('[Result '), '');
 check('партия помечена как недоигранная', !!g && g.status === 'live');
 check('партия привязана к профилю', !!g && !!g.profileId);
@@ -196,6 +212,8 @@ check('в настройках есть свой профиль', (await page.lo
 
 // Mobile navigation must neither overflow nor be redirected by a disposed exercise.
 await page.setViewportSize({ width: 390, height: 844 });
+await tab('Спарринг').click();
+check('свои часы слева и на телефоне', await ownClockFirst());
 for (const route of ['today', 'motorics', 'premove', 'reaction', 'openings', 'scramble', 'games', 'data', 'calibration']) {
   await page.evaluate(route => { location.hash = `#${route}`; }, route);
   await page.waitForTimeout(200);
