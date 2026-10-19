@@ -1528,11 +1528,26 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       label: EXERCISE_LABELS[k],
     })),
     exercise,
-    (v) => {
-      if (exercise === 'snapshot' && v !== 'snapshot' && snSession) void snFinish();
-      exercise = v;
-      if (!session) promptEl.textContent = `${EXERCISE_LABELS[v]}. Нажми «Старт».`;
-      updateExerciseVisibility();
+    async (v) => {
+      if (v === exercise) return;
+      // Stop timers and save the old attempt before changing its exercise identity.
+      // Otherwise the shared session and Start button still belong to the old task.
+      const buttons = exerciseSeg.root.querySelectorAll<HTMLButtonElement>('button');
+      buttons.forEach((button) => { button.disabled = true; });
+      try {
+        if (ksSession) await finishKnightScan();
+        else if (snSession) await snFinish();
+        else if (session) await finish();
+        if (disposed) return;
+        exercise = v;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        promptEl.textContent = `${EXERCISE_LABELS[v]}. Нажми «Старт».`;
+        verdictEl.textContent = '';
+        updateExerciseVisibility();
+      } finally {
+        buttons.forEach((button) => { button.disabled = false; });
+      }
     },
   );
 

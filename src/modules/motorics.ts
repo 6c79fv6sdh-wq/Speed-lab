@@ -777,7 +777,10 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       sigSession = new Session('motorics', 'signal', measuredCalibration(cal, board.size));
       sigStopBtn.disabled = false;
       updateExerciseLiveMark();
-      sigPriorBestMs = await historicalBestReactionMs();
+      const startingSession = sigSession;
+      const priorBest = await historicalBestReactionMs();
+      if (disposed || sigSession !== startingSession) return;
+      sigPriorBestMs = priorBest;
       sigNext = planNextStimulus(DEFAULT_SIGNAL_TIMINGS, rnd);
       sigRenderLive();
       sigScheduleNext(sigNext.gapMs);
@@ -1306,11 +1309,17 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       { value: 'signal', label: 'Сигнал' },
     ],
     exercise,
-    (v) => {
-      if (session || sigSession || routeSession) {
-        // Не даём переключаться на бегу — сначала останови или доиграй.
-        exerciseSeg.set(exercise);
-        return;
+    async (v) => {
+      if (v === exercise) return;
+      const buttons = exerciseSeg.root.querySelectorAll<HTMLButtonElement>('button');
+      buttons.forEach((button) => { button.disabled = true; });
+      try {
+        if (session) await finish();
+        if (sigSession) await sigFinish();
+        if (routeSession) await routeFinish();
+        if (disposed) return;
+      } finally {
+        buttons.forEach((button) => { button.disabled = false; });
       }
       exercise = v;
       // След указателя (.hl-trace) рисует только «Вектор» — при переходе на
