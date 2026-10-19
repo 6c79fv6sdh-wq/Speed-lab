@@ -147,8 +147,8 @@ cg-board {
  * !important. Цвет самой кисти остаётся видимым в середине градиента —
  * значения из DRAW_BRUSHES не потеряны, просто дополнены бликом.
  */
-.hl-board .cg-shapes line[stroke='#10b981'] {
-  stroke: url('#cg-arrow-grad-10b981');
+.hl-board .cg-shapes line[stroke='#00b85a'] {
+  stroke: url('#cg-arrow-grad-00b85a');
 }
 .hl-board .cg-shapes line[stroke='#a63d3d'] {
   stroke: url('#cg-arrow-grad-a63d3d');
@@ -160,8 +160,8 @@ cg-board {
   stroke: url('#cg-arrow-grad-d9a05b');
 }
 
-.hl-board .cg-shapes marker path[fill='#10b981'] {
-  fill: url('#cg-arrow-grad-10b981');
+.hl-board .cg-shapes marker path[fill='#00b85a'] {
+  fill: url('#cg-arrow-grad-00b85a');
 }
 .hl-board .cg-shapes marker path[fill='#a63d3d'] {
   fill: url('#cg-arrow-grad-a63d3d');
@@ -507,9 +507,9 @@ cg-board {
 
 /* Shared emerald circles in exercises and board annotations.
    Lengths use the board SVG's cell-based coordinate system. */
-.hl-board .cg-shapes circle[stroke='#10b981'] {
+.hl-board .cg-shapes circle[stroke='#00b85a'] {
   stroke-width: 0.045px;
-  fill: rgba(16, 185, 129, 0.06);
+  fill: rgba(0, 184, 90, 0.08);
   opacity: 1;
-  filter: drop-shadow(0 0 0.045px rgba(16, 185, 129, 0.4));
+  filter: drop-shadow(0 0 0.045px rgba(0, 184, 90, 0.45));
 }

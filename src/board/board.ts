@@ -42,7 +42,7 @@ export type InputMode = 'select' | 'drag' | 'both';
  * линия просто не читается.
  */
 const DRAW_BRUSHES: DrawBrushes = {
-  green: { key: 'green', color: '#10b981', opacity: 1, lineWidth: 7 },
+  green: { key: 'green', color: '#00b85a', opacity: 1, lineWidth: 7 },
   red: { key: 'red', color: '#a63d3d', opacity: 0.9, lineWidth: 7 },
   blue: { key: 'blue', color: '#4a90c4', opacity: 0.9, lineWidth: 7 },
   yellow: { key: 'yellow', color: '#d9a05b', opacity: 0.9, lineWidth: 7 },
@@ -59,7 +59,7 @@ const DRAW_BRUSHES: DrawBrushes = {
  * истины для самих цветов.
  */
 const ARROW_GRADIENT_STOPS: Record<string, [light: string, dark: string]> = {
-  '#10b981': ['#8de8c4', '#087f5b'],
+  '#00b85a': ['#78e8a3', '#08753e'],
   '#a63d3d': ['#f0a3a3', '#6b2020'],
   '#4a90c4': ['#a9d4f5', '#1f5678'],
   '#d9a05b': ['#ffd39e', '#8a5a22'],
@@ -227,6 +227,7 @@ export class Board {
   private ro: ResizeObserver | null = null;
   private observed: Element | null = null;
   private firstFit = 0;
+  private shapeRefresh = 0;
   private destroyed = false;
   private readonly touchInput: ReturnType<typeof installTouchInput>;
 
@@ -435,9 +436,22 @@ export class Board {
     this.applySize(next);
     // Chessground кеширует размеры доски: без redrawAll фигуры остались бы
     // разложены по старой сетке.
-    this.api.redrawAll();
+    this.redrawAll();
     this.opts.onResize?.(next);
     this.ensureVisible();
+  }
+
+  private redrawAll(): void {
+    this.api.redrawAll();
+    // A queued redraw from the old DOM can update the shared SVG hash after
+    // remounting. Repaint the current layer after those queued callbacks.
+    if (this.shapeRefresh) cancelAnimationFrame(this.shapeRefresh);
+    this.shapeRefresh = requestAnimationFrame(() => {
+      this.shapeRefresh = 0;
+      if (this.destroyed) return;
+      this.api.state.drawable.prevSvgHash = '';
+      this.api.state.dom.redrawNow();
+    });
   }
 
   /** Единственный способ выставить фигуры: из FEN. */
@@ -477,7 +491,12 @@ export class Board {
     // мертва. Через раз, потому что зависит от совпадения цветов соседних
     // заданий. Тем же путём ломал доску и обычный ресайз окна, пока на
     // экране висел показанный ответ.
-    if (wasViewOnly && !viewOnly) this.api.redrawAll();
+    if (wasViewOnly && !viewOnly) {
+      // Initial view-only boards have no document drag/touch listeners.
+      this.api.state.dom.unbind?.();
+      this.api.state.dom.unbind = undefined;
+      this.redrawAll();
+    }
 
     // Новая позиция — новое задание: доска обязана быть на экране целиком,
     // иначе по нижним горизонталям нечем попасть.
@@ -503,7 +522,7 @@ export class Board {
     this.touchInput.refresh();
     // Координаты живут в обёртке, созданной при инициализации: чтобы их
     // добавить или убрать, обёртку надо перерисовать целиком.
-    if (coordsChanged) this.api.redrawAll();
+    if (coordsChanged) this.redrawAll();
     // Желаемый размер сменился — refit() сам решит, сколько влезет,
     // и перерисует доску, если фактический размер изменился.
     if (patch.size !== undefined) this.refit();
@@ -565,7 +584,7 @@ export class Board {
    */
   presetPremove(orig: Key, dest: Key): void {
     this.api.state.premovable.current = [orig, dest];
-    this.api.redrawAll();
+    this.redrawAll();
   }
 
   /** Скрыть фигуры, оставив доску (для упражнений с экспозицией). */
@@ -576,6 +595,7 @@ export class Board {
   destroy(): void {
     this.destroyed = true;
     this.touchInput.dispose();
+    if (this.shapeRefresh) cancelAnimationFrame(this.shapeRefresh);
     if (this.firstFit) cancelAnimationFrame(this.firstFit);
     this.ro?.disconnect();
     this.ro = null;
