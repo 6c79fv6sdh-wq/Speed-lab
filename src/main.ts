@@ -258,34 +258,6 @@ async function boot(): Promise<void> {
     if (id && id !== activeId && ALL_TABS.some((t) => t.id === id)) show(id);
   });
 
-  // Отключаем двойной тап с зумом и резиновую прокрутку на доске.
-  document.addEventListener(
-    'gesturestart',
-    (e) => {
-      if ((e.target as Element | null)?.closest('.hl-board')) e.preventDefault();
-    },
-    { passive: false },
-  );
-  document.addEventListener(
-    'touchmove',
-    (e) => {
-      const t = e.target as HTMLElement | null;
-      if (t && t.closest('.hl-board')) e.preventDefault();
-    },
-    { passive: false },
-  );
-  let lastTouchEnd = 0;
-  document.addEventListener(
-    'touchend',
-    (e) => {
-      const now = Date.now();
-      const onBoard = (e.target as Element | null)?.closest('.hl-board');
-      if (onBoard && now - lastTouchEnd < 320) e.preventDefault();
-      lastTouchEnd = now;
-    },
-    { passive: false },
-  );
-
   // Первый запуск на устройстве — сначала короткая первоначальная
   // настройка. Дальше она в основную навигацию не возвращается: живёт
   // кнопкой «Настройки».

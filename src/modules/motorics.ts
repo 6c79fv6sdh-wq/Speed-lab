@@ -1335,6 +1335,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
 
   /** Маленькая живая точка на активной кнопке, пока идёт сессия. */
   function updateExerciseLiveMark(): void {
+    board.setOptions({ touchScroll: !session && !sigSession && !routeSession });
     exerciseSeg.root.classList.toggle('is-live', session !== null || sigSession !== null || routeSession !== null);
   }
 

@@ -831,6 +831,7 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npm run test:touch
 ```
 
 Если Chromium уже установлен, можно указать `CHROMIUM_EXECUTABLE_PATH`.
@@ -842,3 +843,5 @@ npm run test:e2e
 
 Исходники Cloudflare-сервера входа отсутствуют в текущей основной ветке.
 Локальные тесты клиента не подтверждают состояние его действующего деплоя.
+
+`test:touch` проверяет настоящие сенсорные жесты в мобильном Chromium: прокрутку по доске, нажатия, перетаскивание и премувы за оба цвета.

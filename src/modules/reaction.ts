@@ -463,7 +463,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     });
   }
 
-  function onPointerDown(e: PointerEvent): void {
+  function onPointerDown(e: Pick<PointerEvent, 'clientX' | 'clientY'>): void {
     if (!accepting || !delta) return;
     const rect = boardRect(board.wrap);
     const key = keyFromPoint(e.clientX, e.clientY, rect, delta.userColor);
@@ -1599,7 +1599,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     if (session) void finish();
   });
 
-  board.setOptions({ onMove });
+  board.setOptions({ onMove, onTouchTap: (clientX, clientY) => onPointerDown({ clientX, clientY }) });
   board.wrap.addEventListener('pointerdown', onPointerDown);
 
   // Показ фигур/лимит времени управляют экспозицией на настоящей доске —

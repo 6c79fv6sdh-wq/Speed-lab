@@ -1,4 +1,5 @@
 import { Chessground } from 'chessground';
+import { installTouchInput } from './touch';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { DrawBrushes } from 'chessground/draw';
@@ -177,6 +178,9 @@ export interface BoardOptions {
   inputMode: InputMode;
   /** Разрешить premove. */
   premovable?: boolean;
+  /** Native swipe scrolling; disabled only while pointer-based exercises run. */
+  touchScroll?: boolean;
+  onTouchTap?: (clientX: number, clientY: number) => void;
   /**
    * Разметка правой кнопкой (стрелки/кольца). По умолчанию включена — см.
    * DRAW_BRUSHES выше. Отключается точечно там, где правая кнопка уже
@@ -224,6 +228,7 @@ export class Board {
   private observed: Element | null = null;
   private firstFit = 0;
   private destroyed = false;
+  private readonly touchInput: ReturnType<typeof installTouchInput>;
 
   constructor(container: HTMLElement, opts: BoardOptions) {
     this.opts = opts;
@@ -237,6 +242,10 @@ export class Board {
     if (opts.drawable !== false) ensureArrowGradientDefs();
 
     this.api = Chessground(this.wrap, this.baseConfig());
+    this.touchInput = installTouchInput(this.wrap, this.api, () => ({
+      scroll: this.opts.touchScroll !== false, onTap: this.opts.onTouchTap,
+    }));
+    this.touchInput.refresh();
     this.installGuards();
     this.watchViewport();
   }
@@ -451,6 +460,7 @@ export class Board {
       },
     };
     this.api.set(cfg);
+    this.touchInput.refresh();
 
     // Выход из viewOnly требует перерисовки, иначе доска остаётся без
     // обработчиков ввода: bindBoard в Chessground первой же строкой делает
@@ -476,6 +486,7 @@ export class Board {
 
   setDests(dests: Dests, movableColor: Color | undefined): void {
     this.api.set({ movable: { free: false, color: movableColor, dests, showDests: true } });
+    this.touchInput.refresh();
   }
 
   setOptions(patch: Partial<BoardOptions>): void {
@@ -489,6 +500,7 @@ export class Board {
       selectable: { enabled: this.opts.inputMode !== 'drag' },
       premovable: { enabled: !!this.opts.premovable },
     });
+    this.touchInput.refresh();
     // Координаты живут в обёртке, созданной при инициализации: чтобы их
     // добавить или убрать, обёртку надо перерисовать целиком.
     if (coordsChanged) this.api.redrawAll();
@@ -563,6 +575,7 @@ export class Board {
 
   destroy(): void {
     this.destroyed = true;
+    this.touchInput.dispose();
     if (this.firstFit) cancelAnimationFrame(this.firstFit);
     this.ro?.disconnect();
     this.ro = null;

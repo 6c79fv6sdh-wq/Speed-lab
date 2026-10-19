@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node e2e/check.mjs"
+    "test:e2e": "node e2e/check.mjs",
+    "test:touch": "node e2e/touch.mjs"
   },
   "dependencies": {
     "@lichess-org/zerofish": "^0.0.40",

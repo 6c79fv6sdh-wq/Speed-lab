@@ -60,9 +60,13 @@ describe('switching exercise saves and stops the previous attempt', () => {
     expect(db.putSession).toHaveBeenCalledTimes(1);
   });
   it.each([['Вектор', 'Сигнал'], ['Сигнал', 'Маршрут'], ['Маршрут', 'Вектор']])('motorics: %s → %s needs no Stop button', async (from, to) => {
-    unmount = mountMotorics(root, ctx); choose(from); await flush(); start().click(); await flush();
+    unmount = mountMotorics(root, ctx); choose(from); await flush();
+    expect(root.querySelector<HTMLElement>('.hl-board')!.dataset.touchScroll).toBe('true');
+    start().click(); await flush();
+    expect(root.querySelector<HTMLElement>('.hl-board')!.dataset.touchScroll).toBe('false');
     choose(from); await flush(); expect(db.putSession).not.toHaveBeenCalled();
     choose(to); await flush(); expect(db.putSession).toHaveBeenCalledTimes(1);
+    expect(root.querySelector<HTMLElement>('.hl-board')!.dataset.touchScroll).toBe('true');
     expect(start().disabled).toBe(false); start().click(); await flush(); expect(start().disabled).toBe(true);
     unmount(); unmount = undefined; await flush(); expect(db.putSession).toHaveBeenCalledTimes(2);
   });
