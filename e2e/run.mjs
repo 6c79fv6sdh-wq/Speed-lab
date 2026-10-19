@@ -207,6 +207,32 @@ for (const route of ['today', 'motorics', 'premove', 'reaction', 'openings', 'sc
   const state = await page.evaluate(() => ({ route: location.hash, overflow: document.documentElement.scrollWidth > innerWidth }));
   check(`мобильный экран ${route}`, state.route === `#${route}` && !state.overflow);
 }
+// Native wheel events must reach the page, including when hovering the board.
+await page.setViewportSize({ width: 1280, height: 600 });
+await page.evaluate(() => { location.hash = '#reaction'; });
+await page.locator('.hl-board').first().waitFor();
+await page.waitForTimeout(300);
+for (const overBoard of [false, true]) {
+  await page.locator('.hl-board').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  const box = await page.locator('.hl-board').first().boundingBox();
+  await page.mouse.move(overBoard ? box.x + box.width / 2 : 5, overBoard ? box.y + box.height / 2 : 300);
+  // Start partway down so both directions have room on the real exercise page.
+  const start = await page.evaluate(() => {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    window.scrollTo(0, Math.min(scrollY, Math.max(0, max - 120)));
+    return { y: scrollY, max };
+  });
+  await page.mouse.wheel(0, 100);
+  await page.waitForTimeout(200);
+  const down = await page.evaluate(() => scrollY);
+  await page.mouse.wheel(0, -100);
+  await page.waitForTimeout(200);
+  const up = await page.evaluate(() => scrollY);
+  check(`колесо прокручивает вниз и вверх ${overBoard ? 'над доской' : 'рядом с доской'}`,
+    start.max > 120 && down > start.y && up < down,
+    `${start.y} → ${down} → ${up}`);
+}
 check('в браузере нет ошибок JavaScript', runtimeErrors.length === 0, runtimeErrors.join('; '));
 
 console.log('\n──────────────────────────────');
