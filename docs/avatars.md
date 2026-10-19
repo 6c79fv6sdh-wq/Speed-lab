@@ -25,9 +25,9 @@
 
 | # | Файл | Соперник | Сила |
 |---|------|----------|------|
-| 1 | `pigeon-puppy.webp` | Щенок Пижон | ~400 |
-| 2 | `princess.webp` | Принцесса | ~500 |
-| 3 | `neurophilosopher.webp` | Нейрофилософ | слабейшая Maia |
+| 1 | `neurophilosopher.webp` | Нейрофилософ | ~400 |
+| 2 | `pigeon-puppy.webp` | Щенок Пижон | ~500 |
+| 3 | `princess.webp` | Принцесса | слабейшая Maia |
 | 4 | `michael.webp` | Майкл | ~800 |
 | 5 | `napoleon.webp` | Наполеон | ~1000 |
 | 6 | `saul.webp` | Сол | ~1100 |

@@ -112,13 +112,13 @@ const botNames = await page
   .locator('.panel', { hasText: 'СОПЕРНИК' })
   .locator('.bot-avatar-name')
   .allInnerTexts();
-check('в списке соперников есть Maia-боты', botNames.some((n) => /Нейрофилософ|Наполеон/.test(n)), botNames.join(' / '));
+check('в списке соперников есть Maia-боты', botNames.some((n) => /Принцесса|Наполеон/.test(n)), botNames.join(' / '));
 
 const tcNames = await page.locator('.row', { hasText: 'Контроль' }).locator('.seg-btn').allInnerTexts();
 check('появились нормальные контроли', tcNames.includes('5+3') && tcNames.includes('Без часов'), tcNames.join(' / '));
 
 // Самый слабый Maia-бот, без часов — чтобы прогон не зависел от скорости машины.
-await page.getByRole('button', { name: 'Нейрофилософ', exact: true }).click();
+await page.getByRole('button', { name: 'Принцесса', exact: true }).click();
 await page.getByRole('button', { name: 'Без часов', exact: true }).click();
 await page.getByRole('button', { name: 'Старт', exact: true }).click();
 
