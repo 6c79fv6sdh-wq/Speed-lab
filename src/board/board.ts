@@ -42,7 +42,7 @@ export type InputMode = 'select' | 'drag' | 'both';
  * линия просто не читается.
  */
 const DRAW_BRUSHES: DrawBrushes = {
-  green: { key: 'green', color: '#26a473', opacity: 0.9, lineWidth: 7 },
+  green: { key: 'green', color: '#10b981', opacity: 1, lineWidth: 7 },
   red: { key: 'red', color: '#a63d3d', opacity: 0.9, lineWidth: 7 },
   blue: { key: 'blue', color: '#4a90c4', opacity: 0.9, lineWidth: 7 },
   yellow: { key: 'yellow', color: '#d9a05b', opacity: 0.9, lineWidth: 7 },
@@ -59,7 +59,7 @@ const DRAW_BRUSHES: DrawBrushes = {
  * истины для самих цветов.
  */
 const ARROW_GRADIENT_STOPS: Record<string, [light: string, dark: string]> = {
-  '#26a473': ['#7ff0c0', '#0c5c3c'],
+  '#10b981': ['#8de8c4', '#087f5b'],
   '#a63d3d': ['#f0a3a3', '#6b2020'],
   '#4a90c4': ['#a9d4f5', '#1f5678'],
   '#d9a05b': ['#ffd39e', '#8a5a22'],

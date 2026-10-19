@@ -129,20 +129,11 @@ cg-board {
   visibility: hidden;
 }
 
-/*
- * Разметка правой кнопкой (стрелки/кольца, см. DRAW_BRUSHES в board.ts).
- * У Chessground сама SVG-прослойка по умолчанию рисуется с opacity: 0.6
- * — рассчитано на то, что цвет уже насыщенный сам по себе. У наших
- * кистей яркость уже задана через brush.opacity (0.9), поэтому здесь
- * возвращаем 1, иначе получилось бы вдвойне приглушённо (0.6 × 0.9) и
- * линию не разглядеть при показе с экрана или через проектор. Тень —
- * не размытое лайшесовское свечение, а короткая контактная тень: так
- * стрелка читается собранной, приборной деталью, а не светящимся
- * маркером поверх доски.
- */
+/* Shared board annotations retain full brush opacity. Individual emerald
+   circles supply their own restrained glow, without a heavy group shadow. */
 .hl-board .cg-shapes {
   opacity: 1;
-  filter: drop-shadow(0 1.5px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.3));
+  filter: none;
 }
 
 /*
@@ -156,8 +147,8 @@ cg-board {
  * !important. Цвет самой кисти остаётся видимым в середине градиента —
  * значения из DRAW_BRUSHES не потеряны, просто дополнены бликом.
  */
-.hl-board .cg-shapes line[stroke='#26a473'] {
-  stroke: url('#cg-arrow-grad-26a473');
+.hl-board .cg-shapes line[stroke='#10b981'] {
+  stroke: url('#cg-arrow-grad-10b981');
 }
 .hl-board .cg-shapes line[stroke='#a63d3d'] {
   stroke: url('#cg-arrow-grad-a63d3d');
@@ -169,8 +160,8 @@ cg-board {
   stroke: url('#cg-arrow-grad-d9a05b');
 }
 
-.hl-board .cg-shapes marker path[fill='#26a473'] {
-  fill: url('#cg-arrow-grad-26a473');
+.hl-board .cg-shapes marker path[fill='#10b981'] {
+  fill: url('#cg-arrow-grad-10b981');
 }
 .hl-board .cg-shapes marker path[fill='#a63d3d'] {
   fill: url('#cg-arrow-grad-a63d3d');
@@ -512,4 +503,13 @@ cg-board {
 .hl-board[data-touch-drag-color="both"] cg-board piece {
   pointer-events: auto;
   touch-action: none;
+}
+
+/* Shared emerald circles in exercises and board annotations.
+   Lengths use the board SVG's cell-based coordinate system. */
+.hl-board .cg-shapes circle[stroke='#10b981'] {
+  stroke-width: 0.045px;
+  fill: rgba(16, 185, 129, 0.06);
+  opacity: 1;
+  filter: drop-shadow(0 0 0.045px rgba(16, 185, 129, 0.4));
 }
