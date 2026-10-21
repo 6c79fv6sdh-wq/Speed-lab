@@ -202,6 +202,8 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   });
 
   const promptEl = el('div', { class: 'prompt' }, ['Выбери упражнение и нажми «Старт».']);
+  const cancelPremoveBtn = el('button', { type: 'button', class: 'btn', hidden: '' }, ['Отменить премув']);
+  cancelPremoveBtn.addEventListener('click', () => board.api.cancelMove());
   const verdictEl = el('div', { class: 'prompt' }, ['']);
   const liveStats = el('div', {});
   const planNextHost = el('div', { class: 'plan-next-host' });
@@ -341,6 +343,9 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
 
   function nextTask(): void {
     clearTimers();
+    board.cancelPremove();
+    cancelPremoveBtn.hidden = true;
+    board.api.set({ premovable: { enabled: exercise === 'mate-in-2' } });
     if (!session) return;
     if (taskCount >= TASKS_PER_SESSION) {
       void finish();
@@ -465,7 +470,8 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       const userColor = current.userColor;
       board.setPiecesHidden(false);
       board.setPosition({ fen: fenOf(after), orientation: userColor, turnColor: after.turn,
-        movableColor: undefined, viewOnly: true, lastMove: [orig, dest], check: checkedColor(after) });
+        movableColor: userColor, viewOnly: false, dests: new Map(),
+        selected: board.api.state.selected, lastMove: [orig, dest], check: checkedColor(after) });
       promptEl.textContent = 'Ход соперника.';
       later(() => {
         if (!session || !mateTwo) return;
@@ -474,13 +480,14 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
         mateTwoStage = 'finish';
         current = mateTwoTask(fenOf(after), branch.winningUcis);
         board.setPosition({ fen: current.fen, orientation: userColor, turnColor: after.turn,
-          movableColor: userColor, viewOnly: false, dests: dests(after),
+          movableColor: userColor, viewOnly: false, dests: dests(after), selected: board.api.state.selected,
           lastMove: [branch.replyUci.slice(0, 2) as Key, branch.replyUci.slice(2, 4) as Key], check: checkedColor(after) });
         promptEl.textContent = `Играешь ${userColor === 'white' ? 'белыми' : 'чёрными'}. Поставь мат.`;
         shownAt = performance.now();
         accepting = true;
         applyExposure();
         armTimeLimit();
+        board.playPremove();
       }, 400);
       return;
     }
@@ -557,6 +564,9 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function record(a: Attempt): void {
+    board.cancelPremove();
+    cancelPremoveBtn.hidden = true;
+    board.api.set({ premovable: { enabled: false } });
     attempts.push(a);
     taskCount++;
     void session?.record({ ...a });
@@ -597,6 +607,9 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
 
   async function finish(): Promise<void> {
     clearTimers();
+    board.api.cancelMove();
+    cancelPremoveBtn.hidden = true;
+    board.api.set({ premovable: { enabled: false } });
     accepting = false;
     finishedAt = performance.now();
     board.setPiecesHidden(false);
@@ -1662,7 +1675,12 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     if (session) void finish();
   });
 
-  board.setOptions({ onMove, onTouchTap: (clientX, clientY) => onPointerDown({ clientX, clientY }) });
+  board.setOptions({
+    onMove,
+    onSetPremove: () => { cancelPremoveBtn.hidden = false; },
+    onUnsetPremove: () => { cancelPremoveBtn.hidden = true; },
+    onTouchTap: (clientX, clientY) => onPointerDown({ clientX, clientY }),
+  });
   board.wrap.addEventListener('pointerdown', onPointerDown);
 
   // Показ фигур/лимит времени управляют экспозицией на настоящей доске —
@@ -1672,6 +1690,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     boardHost,
     el('div', { class: 'side' }, [
       promptEl,
+      cancelPremoveBtn,
       verdictEl,
       liveStats,
       el('div', { class: 'row' }, [startBtn, stopBtn]),

@@ -56,3 +56,44 @@ it('times out the final move without recording the correct key separately',async
  await vi.advanceTimersByTimeAsync(410);expect(db.putMeasurement).not.toHaveBeenCalled();
  await vi.advanceTimersByTimeAsync(500);expect(db.putMeasurement).toHaveBeenCalledTimes(1);expect(root.textContent).toContain('Время вышло.');
 });
+
+async function startFor(color:'white'|'black') {
+ const index=MATE_TWO_PUZZLES.findIndex(p=>p.sideToMove===color);
+ let i=MATE_TWO_PUZZLES.length-1;
+ vi.spyOn(Math,'random').mockImplementation(()=>{
+  if(i<1)return 0; // Pick the first defence reproducibly.
+  const j=i===index?0:i;
+  return (j+0.1)/(i--+1);
+ });
+ await start();expect(puzzle().sideToMove).toBe(color);
+}
+it.each(['white','black'] as const)('executes a legal queued mate exactly once for %s',async color=>{
+ await startFor(color);const p=puzzle();await move(p.solution.firstUci);
+ await move(p.solution.branches[0].winningUcis[0]);expect(board().hasPremove()).toBe(true);
+ expect(db.putMeasurement).not.toHaveBeenCalled();
+ await vi.advanceTimersByTimeAsync(420);
+ expect(board().hasPremove()).toBe(false);expect(db.putMeasurement).toHaveBeenCalledTimes(1);
+ expect(root.textContent).toContain('Верно,');
+});
+it('allows cancellation of the queued mate without submitting an answer',async()=>{
+ await startFor('white');const p=puzzle();await move(p.solution.firstUci);
+ await move(p.solution.branches[0].winningUcis[0]);expect(board().hasPremove()).toBe(true);
+ click('Отменить премув');expect(board().hasPremove()).toBe(false);
+ await vi.advanceTimersByTimeAsync(420);expect(db.putMeasurement).not.toHaveBeenCalled();
+ await move(p.solution.branches[0].winningUcis[0]);expect(root.textContent).toContain('Верно,');
+});
+it('drops an illegal premove and leaves the final move available',async()=>{
+ await startFor('white');const p=puzzle();await move(p.solution.firstUci);
+ const after=posFromFen(p.fen);after.play((await import('../src/core/chess')).moveFromUci(p.solution.firstUci));after.play((await import('../src/core/chess')).moveFromUci(p.solution.branches[0].replyUci));
+ const legal=new Set(allLegalMoves(after).map(m=>uciOf(m).slice(0,4)));
+ let queued=false;
+ for(const [key,piece] of board().api.state.pieces){
+  if(piece.color!==p.sideToMove)continue;
+  board().api.cancelMove();board().api.selectSquare(key);
+  const to=board().api.state.premovable.dests?.find(to=>!legal.has(key+to));
+  if(to){board().api.selectSquare(to);queued=true;break;}
+ }
+ expect(queued).toBe(true);expect(board().hasPremove()).toBe(true);
+ await vi.advanceTimersByTimeAsync(420);expect(board().hasPremove()).toBe(false);expect(db.putMeasurement).not.toHaveBeenCalled();
+ await move(p.solution.branches[0].winningUcis[0]);expect(root.textContent).toContain('Верно,');
+});
