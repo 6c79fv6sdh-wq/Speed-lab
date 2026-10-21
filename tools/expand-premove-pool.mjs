@@ -19,12 +19,13 @@ const source = JSON.parse(readFileSync(new URL('../data/lichess-safe-premove-200
 const forced = current.PREMOVE_FORCED_CAPTURE_POOL.filter(task=>!task.id.startsWith('fc-lichess-')&&!task.id.startsWith('fc-game-'));
 const candidateFile = new URL('./premove-candidates.json', import.meta.url);
 const candidates = JSON.parse(readFileSync(candidateFile));
+const target = 100;
 const accepted = [], rejected = [];
 const signature = fen => fen.split(' ').slice(0, 4).join(' ');
 const seen = new Set(forced.map(task => signature(task.fen)));
 try {
  for (const task of [...source.tasks,...JSON.parse(readFileSync(new URL('./premove-game-candidates.json',import.meta.url)))]) {
-  if (forced.length >= 50) break;
+  if (forced.length >= target) break;
   const c = {
    id: task.poolId ?? `fc-lichess-${task.id.toLowerCase()}`,
    fen: task.startFen, userColor: task.userColor ?? 'white', expectedUci: task.expectedOpponentMove, answerUci: task.premove,
@@ -52,14 +53,14 @@ try {
    }
   }
   if (!alternativesSafe) { fail('premove remains legal after an alternative reply'); continue; }
-  console.log(`Checking ${c.id} at depth ${process.env.PREMOVE_DEPTH} (${forced.length}/50 accepted)`);
+  console.log(`Checking ${c.id} at depth ${process.env.PREMOVE_DEPTH} (${forced.length}/${target} accepted)`);
   const result = await validateForcedCapture(c);
   if (!result.task) { fail(result.rejected); continue; }
   forced.push(result.task);accepted.push(c.id);seen.add(signature(c.fen));
   if (!candidates.candidates.some(existing => existing.id === c.id)) candidates.candidates.push(c);
   console.log(`Accept ${c.id}: ${result.task.expectedSan} → ${result.task.answerSan}, total ${forced.length}`);
  }
- if (forced.length < 50) throw Error(`Only ${forced.length} valid recapture tasks; active pool has not been changed`);
+ if (forced.length < target) throw Error(`Only ${forced.length} valid recapture tasks; active pool has not been changed`);
  const report = { sources:['data/lichess-safe-premove-200-white.json','data/premove-source-games.pgn'], depth:Number(process.env.PREMOVE_DEPTH), accepted, rejected,
   counts:{forcedCapture:forced.length,safeUnsafe:current.PREMOVE_SAFE_UNSAFE_POOL.length,cancel:current.PREMOVE_CANCEL_POOL.length},
   analyses:analysisSnapshot(),

@@ -14,8 +14,8 @@ import {validateForcedCapture, type EngineLine} from '../src/data/premove-valida
 describe('expanded verified premove recapture pool', () => {
  const pool = positionsOf('forced-capture');
  const imported = pool.filter(task => task.id.startsWith('fc-lichess-') || task.id.startsWith('fc-game-'));
- it('offers at least 50 distinct positions in the previously tiny mode', () => {
-  expect(pool.length).toBeGreaterThanOrEqual(50);
+ it('offers at least 100 distinct positions in the previously tiny mode', () => {
+  expect(pool.length).toBeGreaterThanOrEqual(100);
   expect(new Set(pool.map(task => task.fen.split(' ').slice(0,4).join(' '))).size).toBe(pool.length);
   expect(imported.map(task => task.id).sort()).toEqual([...audit.accepted].sort());
   expect(audit.counts.forcedCapture).toBe(pool.length);
