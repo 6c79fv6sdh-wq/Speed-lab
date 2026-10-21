@@ -313,6 +313,8 @@ cg-board {
  * В покое непрозрачность 0 у обоих слоёв — доска остаётся обычной тёмной.
  */
 .signal-overlay {
+  --signal-center-x: 50%;
+  --signal-center-y: 50%;
   position: absolute;
   inset: 0;
   z-index: 11;
@@ -335,7 +337,7 @@ cg-board {
    * яркая часть (до обода на ~58%) остаётся куда компактнее, чем прежде.
    */
   background: radial-gradient(
-    circle closest-side at 47% 44%,
+    circle closest-side at var(--signal-center-x) var(--signal-center-y),
     #fff 0%,
     var(--signal-core, transparent) 12%,
     var(--signal-mid, transparent) 26%,
@@ -363,8 +365,8 @@ cg-board {
  */
 .signal-ring {
   position: absolute;
-  top: 44%;
-  left: 47%;
+  top: var(--signal-center-y);
+  left: var(--signal-center-x);
   width: 14%;
   height: 14%;
   margin: -7% 0 0 -7%;
@@ -386,7 +388,7 @@ cg-board {
      closest-side — по той же причине, что и у тела выше (см. .signal-overlay):
      без него % считается от дальнего угла, а не от края доски. */
   background: radial-gradient(
-    circle closest-side at 47% 44%,
+    circle closest-side at var(--signal-center-x) var(--signal-center-y),
     #fff 0%,
     var(--signal-core, transparent) 20%,
     transparent 40%
