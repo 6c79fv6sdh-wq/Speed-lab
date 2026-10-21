@@ -204,7 +204,6 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   const promptEl = el('div', { class: 'prompt' }, ['Выбери упражнение и нажми «Старт».']);
   const verdictEl = el('div', { class: 'prompt' }, ['']);
   const liveStats = el('div', {});
-  const mateTwoDownload = el('a', { href: `${import.meta.env.BASE_URL}packs/mate-in-2-100.zip`, download: 'mate-in-2-100.zip' }, ['Скачать пак «Мат в 2» — 100 задач']);
   const planNextHost = el('div', { class: 'plan-next-host' });
 
   let session: Session | null = null;
@@ -1577,7 +1576,6 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   ]);
 
   function updateExerciseVisibility(): void {
-    mateTwoDownload.hidden = exercise !== 'mate-in-2';
     const isKs = exercise === 'knight-scan';
     const isSn = exercise === 'snapshot';
     timingControlsHost.style.display = isKs || isSn ? 'none' : '';
@@ -1674,7 +1672,6 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     boardHost,
     el('div', { class: 'side' }, [
       promptEl,
-      mateTwoDownload,
       verdictEl,
       liveStats,
       el('div', { class: 'row' }, [startBtn, stopBtn]),
