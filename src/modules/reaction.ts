@@ -1,3 +1,4 @@
+import { MATE_TWO_PUZZLES, type MateTwoPuzzle } from '../data/puzzles-mate-two';
 import type { AppContext, Unmount } from '../main';
 import { Board } from '../board/board';
 import { disclosure, el, metric, metrics, panel, segmented, table } from '../core/ui';
@@ -65,6 +66,7 @@ import type { Role } from '../core/chess';
 export type ReactionExercise =
   | 'free-capture'
   | 'mate-in-1'
+  | 'mate-in-2'
   | 'safe-check'
   | 'delta-from'
   | 'delta-to'
@@ -75,6 +77,7 @@ export type Exposure = 'unlimited' | '500' | '300' | '200';
 const EXERCISE_LABELS: Record<ReactionExercise, string> = {
   'free-capture': 'Что висит?',
   'mate-in-1': 'Мат в 1',
+  'mate-in-2': 'Мат в 2',
   'safe-check': 'Шах',
   'delta-from': 'Откуда',
   'delta-to': 'Куда',
@@ -95,6 +98,8 @@ function promptFor(ex: ReactionExercise, userColor: Color): string {
   switch (ex) {
     case 'free-capture':
       return `Играешь ${side}. Забери висящую фигуру. Отбить её нельзя.`;
+    case 'mate-in-2':
+      return `Играешь ${side}. Поставь мат в два хода.`;
     case 'mate-in-1':
       return `Играешь ${side}. Поставь мат в один ход.`;
     case 'safe-check':
@@ -199,6 +204,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   const promptEl = el('div', { class: 'prompt' }, ['Выбери упражнение и нажми «Старт».']);
   const verdictEl = el('div', { class: 'prompt' }, ['']);
   const liveStats = el('div', {});
+  const mateTwoDownload = el('a', { href: `${import.meta.env.BASE_URL}packs/mate-in-2-100.zip`, download: 'mate-in-2-100.zip' }, ['Скачать пак «Мат в 2» — 100 задач']);
   const planNextHost = el('div', { class: 'plan-next-host' });
 
   let session: Session | null = null;
@@ -209,6 +215,11 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   let puzzles: ReturnType<typeof puzzleQueue> = [];
   let matePuzzles: ReturnType<typeof matePuzzleQueue> = [];
   let safeChecks: ReturnType<typeof safeCheckQueue> = [];
+  let mateTwoQueue: MateTwoPuzzle[] = [];
+  let mateTwo: MateTwoPuzzle | null = null;
+  let mateTwoStage: 'first' | 'finish' = 'first';
+  let mateTwoThinkingMs = 0;
+  let mateTwoLine = '';
   let currentPuzzleId = '';
   let current: ReactionTask | null = null;
   let delta: DeltaTask | null = null;
@@ -218,6 +229,14 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   const timers: number[] = [];
 
   const rnd = () => Math.random();
+  function shuffledMateTwo(): MateTwoPuzzle[] {
+    const queue = [...MATE_TWO_PUZZLES];
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [queue[i], queue[j]] = [queue[j], queue[i]];
+    }
+    return queue.slice(0, TASKS_PER_SESSION);
+  }
 
   // --- «Скан конём»: механика (четыре мини-доски, BFS, выбор клавишей
   // 1-4) совсем другая, чем у остальных упражнений «Тактики» — своё
@@ -313,10 +332,10 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       timeLimit,
       timedOut: true,
       correct: false,
-      latencyMs: t - shownAt,
+      latencyMs: t - shownAt + mateTwoThinkingMs,
       answer: '—',
       expected: current.solutions.map((s) => s.uci).join(' '),
-      fen: current.fen,
+      fen: mateTwo?.fen ?? current.fen,
       puzzleId: currentPuzzleId,
     });
   }
@@ -332,6 +351,10 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     verdictEl.className = 'prompt';
     current = null;
     delta = null;
+    mateTwo = null;
+    mateTwoStage = 'first';
+    mateTwoThinkingMs = 0;
+    mateTwoLine = '';
 
     if (exercise === 'delta-from' || exercise === 'delta-to') {
       const t = generateDeltaTask(rnd, 400, exercise === 'delta-to' ? 'to' : 'from');
@@ -381,6 +404,10 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       const puzzle = puzzles.shift();
       t = puzzle ? taskFromPuzzle(puzzle) : null;
       currentPuzzleId = puzzle?.id ?? '';
+    } else if (exercise === 'mate-in-2') {
+      mateTwo = mateTwoQueue.shift() ?? null;
+      t = mateTwo ? mateTwoTask(mateTwo.fen, [mateTwo.solution.firstUci]) : null;
+      currentPuzzleId = mateTwo?.id ?? '';
     } else if (exercise === 'mate-in-1') {
       const puzzle = matePuzzles.shift();
       t = puzzle ? taskFromMatePuzzle(puzzle) : null;
@@ -415,13 +442,49 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     armTimeLimit();
   }
 
+  function mateTwoTask(fen: string, ucis: string[]): ReactionTask {
+    const pos = posFromFen(fen);
+    return { fen, pos, userColor: pos.turn,
+      solutions: ucis.map(uci => ({ uci, from: uci.slice(0, 2), to: uci.slice(2, 4) })) };
+  }
+
   function onMove(orig: Key, dest: Key): void {
     if (!accepting || !current) return;
     accepting = false;
-    const move = exercise === 'mate-in-1' ? moveFromKeys(current.pos, orig, dest) : undefined;
+    const move = (exercise === 'mate-in-1' || exercise === 'mate-in-2') ? moveFromKeys(current.pos, orig, dest) : undefined;
     const uci = move ? uciOf(move) : `${orig}${dest}`;
     const correct = current.solutions.some((s) => s.uci === uci);
     const t = performance.now();
+
+    clearTimers();
+    if (correct && mateTwo && mateTwoStage === 'first') {
+      mateTwoThinkingMs = t - shownAt;
+      mateTwoLine = uci;
+      const after = current.pos.clone();
+      after.play(moveFromUci(uci));
+      const branch = mateTwo.solution.branches[Math.floor(rnd() * mateTwo.solution.branches.length)];
+      const userColor = current.userColor;
+      board.setPiecesHidden(false);
+      board.setPosition({ fen: fenOf(after), orientation: userColor, turnColor: after.turn,
+        movableColor: undefined, viewOnly: true, lastMove: [orig, dest], check: checkedColor(after) });
+      promptEl.textContent = 'Ход соперника.';
+      later(() => {
+        if (!session || !mateTwo) return;
+        after.play(moveFromUci(branch.replyUci));
+        mateTwoLine += ` ${branch.replyUci}`;
+        mateTwoStage = 'finish';
+        current = mateTwoTask(fenOf(after), branch.winningUcis);
+        board.setPosition({ fen: current.fen, orientation: userColor, turnColor: after.turn,
+          movableColor: userColor, viewOnly: false, dests: dests(after),
+          lastMove: [branch.replyUci.slice(0, 2) as Key, branch.replyUci.slice(2, 4) as Key], check: checkedColor(after) });
+        promptEl.textContent = `Играешь ${userColor === 'white' ? 'белыми' : 'чёрными'}. Поставь мат.`;
+        shownAt = performance.now();
+        accepting = true;
+        applyExposure();
+        armTimeLimit();
+      }, 400);
+      return;
+    }
 
     // Доска всегда слепок FEN: показываем позицию после хода либо исходную.
     if (correct) {
@@ -455,10 +518,10 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       exposure,
       timeLimit,
       correct,
-      latencyMs: t - shownAt,
-      answer: uci,
+      latencyMs: t - shownAt + mateTwoThinkingMs,
+      answer: mateTwoLine ? `${mateTwoLine} ${uci}` : uci,
       expected: current.solutions.map((s) => s.uci).join(' '),
-      fen: current.fen,
+      fen: mateTwo?.fen ?? current.fen,
       puzzleId: currentPuzzleId,
     });
   }
@@ -1514,6 +1577,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
   ]);
 
   function updateExerciseVisibility(): void {
+    mateTwoDownload.hidden = exercise !== 'mate-in-2';
     const isKs = exercise === 'knight-scan';
     const isSn = exercise === 'snapshot';
     timingControlsHost.style.display = isKs || isSn ? 'none' : '';
@@ -1582,6 +1646,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     planNextHost.innerHTML = '';
     puzzles = exercise === 'free-capture' ? puzzleQueue(rnd, TASKS_PER_SESSION) : [];
     matePuzzles = exercise === 'mate-in-1' ? matePuzzleQueue(rnd, TASKS_PER_SESSION) : [];
+    mateTwoQueue = exercise === 'mate-in-2' ? shuffledMateTwo() : [];
     safeChecks = exercise === 'safe-check' ? safeCheckQueue(rnd, TASKS_PER_SESSION) : [];
     // Лимит времени дописываем в режим, иначе в «Прогрессе» сессия на
     // 0,2 с легла бы в одну строку с сессией без лимита — а это разные
@@ -1609,6 +1674,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     boardHost,
     el('div', { class: 'side' }, [
       promptEl,
+      mateTwoDownload,
       verdictEl,
       liveStats,
       el('div', { class: 'row' }, [startBtn, stopBtn]),

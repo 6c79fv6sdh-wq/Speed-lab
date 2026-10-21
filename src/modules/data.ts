@@ -31,7 +31,7 @@ function sessionModeLabel(session: SessionRecord): string {
   const labels: Record<string, string> = {
     'source-target': 'Вектор', signal: 'Сигнал',
     ...PREMOVE_MODE_LABELS,
-    'free-capture': 'Что висит?', 'mate-in-1': 'Мат в 1', 'safe-check': 'Шах',
+    'free-capture': 'Что висит?', 'mate-in-1': 'Мат в 1', 'mate-in-2': 'Мат в 2', 'safe-check': 'Шах',
     'delta-from': 'Откуда', 'delta-to': 'Куда', 'knight-scan': 'Скан конём', snapshot: 'Snapshot',
   };
   if (mode.startsWith('route-')) return 'Маршрут';
