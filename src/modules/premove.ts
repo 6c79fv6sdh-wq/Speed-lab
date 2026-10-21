@@ -503,7 +503,7 @@ export function mountPremove(root: HTMLElement, ctx: AppContext): Unmount {
     liveStats.append(
       metrics([
         metric('Скорость', fmtSec(median(primary))),
-        metric('Без ошибок', fmtPct(n ? correct.length / n : null)),
+        metric('Точность', fmtPct(n ? correct.length / n : null)),
         metric('Общее время', fmtSec(elapsedMs(), 1)),
       ]),
       el('p', { class: 'hint metrics-note' }, [

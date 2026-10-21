@@ -115,7 +115,7 @@ export function mountData(root: HTMLElement, _ctx: AppContext): Unmount {
       motoricsHost.append(
         el('h3', {}, [title]),
         table(
-          [title.replace('По ', ''), 'Попыток', 'Медиана', 'P90', 'Без промахов', 'Эффект.', 'Коррекций'],
+          [title.replace('По ', ''), 'Попыток', 'Медиана', 'P90', 'Точность', 'Эффект.', 'Коррекций'],
           rows.map((r) => [
             r.key,
             String(r.attempts),

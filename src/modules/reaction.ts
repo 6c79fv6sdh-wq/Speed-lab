@@ -586,7 +586,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     liveStats.append(
       metrics([
         metric('Скорость', fmtSec(median(correct.map((a) => a.latencyMs)))),
-        metric('Без ошибок', fmtPct(n ? correct.length / n : null)),
+        metric('Точность', fmtPct(n ? correct.length / n : null)),
         metric('Общее время', fmtSec(elapsedMs(), 1)),
       ]),
       el('p', { class: 'hint metrics-note' }, [

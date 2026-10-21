@@ -443,7 +443,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     liveStats.append(
       metrics([
         metric('Скорость', fmtSec(median(totals))),
-        metric('Без промахов', fmtPct(hitRate)),
+        metric('Точность', fmtPct(hitRate)),
         metric('Общее время', fmtSec(elapsedMs(), 1)),
       ]),
       el('p', { class: 'hint metrics-note' }, [
@@ -535,7 +535,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       el('h3', {}, ['По расстоянию в клетках']),
       table(['Клеток', 'N', 'Медиана', 'P90', 'Эффект.', 'Коррекций'], distRows),
       el('h3', {}, ['По направлению']),
-      table(['Направление', 'N', 'Медиана', 'P90', 'Без промахов'], dirRows),
+      table(['Направление', 'N', 'Медиана', 'P90', 'Точность'], dirRows),
     ]));
   }
 
@@ -842,13 +842,13 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   let routeSurvivalIndex = 0; // Survival: номер текущей цели — от него лимит и фигура
   let routeErrors = 0; // Survival: жизни тают отсюда
   let routeMissesTotal = 0; // все режимы: неверных попыток всего — для счётчика
-  let routeRepMisses = 0; // неверных попыток на ТЕКУЩУЮ цель — для «Без промахов»
+  let routeRepMisses = 0; // неверных попыток на ТЕКУЩУЮ цель — для «Точность»
   let routeMoveTimer: number | null = null; // Survival: лимит на текущее перемещение
   let routeSessionTimer: number | null = null; // Эстафета: жёсткие 60 секунд
   let routeStartedAt: number | null = null;
   let routeFinishedAt: number | null = null;
   // Только завершённые (верные) ходы — как results у «Вектора»: используются
-  // для «Скорость»/«Без промахов», подробный разбор намеренно не копим на
+  // для «Скорость»/«Точность», подробный разбор намеренно не копим на
   // экране (см. комментарий у панели «Итог «Маршрута»» ниже).
   let routeLog: { totalMs: number; misses: number }[] = [];
 
@@ -953,7 +953,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     routeLiveStats.append(
       metrics([
         metric('Скорость', fmtSec(median(totals))),
-        metric('Без промахов', fmtPct(hitRate)),
+        metric('Точность', fmtPct(hitRate)),
         metric('Общее время', fmtSec(routeElapsedMs(), 1)),
       ]),
     );
@@ -1107,7 +1107,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       ['Режим', ROUTE_MODE_LABEL[routeMode]],
       ['Ходов засчитано', String(routeLog.length)],
       ['Медиана хода', fmtMs(median(totals))],
-      ['Без промахов', accuracy === null ? '—' : fmtPct(accuracy)],
+      ['Точность', accuracy === null ? '—' : fmtPct(accuracy)],
     ];
     if (routeMode === 'relay') items.push(['Очков за минуту', String(routeCorrectTotal)]);
     if (routeMode === 'survival') items.push(['Пройдено до конца', String(routeCorrectTotal)]);
