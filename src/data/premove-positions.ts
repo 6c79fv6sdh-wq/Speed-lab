@@ -21,6 +21,8 @@ export interface PremoveSource {
   date: string;
   /** Номер полухода, на котором стоит fen задачи (соперник вот-вот сделает следующий ход). */
   ply: number;
+  /** Original game link when the source dataset provides it. */
+  url?: string;
 }
 
 /** Метаданные офлайн-проверки Stockfish — версия и глубина, с которыми считались оценки. */

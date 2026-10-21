@@ -457,7 +457,10 @@ export function mountPremove(root: HTMLElement, ctx: AppContext): Unmount {
     verdictEl.textContent = verdictText(a, task);
     verdictEl.className = a.correct ? 'prompt verdict-ok' : 'prompt verdict-bad';
     commentEl.textContent = task.comment;
-    sourceEl.textContent = `${task.source.white} — ${task.source.black}, ${task.source.event}, ${task.source.date}`;
+    const players = [task.source.white, task.source.black].filter(name => name !== 'Unknown' && name !== '?');
+    const event = task.source.event.startsWith('Lichess ') ? 'Lichess' : task.source.event;
+    const date = /\d{4}/.test(task.source.date) ? task.source.date : '';
+    sourceEl.textContent = [players.join(' — '), event, date].filter(Boolean).join(', ');
     board.cancelPremove();
     renderLive();
     later(() => nextTask(), 1400);

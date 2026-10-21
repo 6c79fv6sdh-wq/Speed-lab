@@ -135,6 +135,726 @@
         "ply": 14,
         "note": "Та же партия: соблазн 7...exd4 8.Qxd4?! — известная теоретическая неточность (ловушка «Ноев ковчег»), кандидат на разбор в safe/unsafe — решает движок, а не легенда дебюта."
       }
+    },
+    {
+      "id": "fc-lichess-pm001",
+      "fen": "r5k1/1N3pp1/2p4p/p6P/2p5/Q2r4/PP3PP1/R3R1K1 b - - 0 29",
+      "userColor": "white",
+      "expectedUci": "d3a3",
+      "answerUci": "b2a3",
+      "source": {
+        "white": "nihalsarin2004",
+        "black": "Unknown",
+        "event": "Lichess W3XdRYpm",
+        "date": "????.??.??",
+        "ply": 58,
+        "url": "https://lichess.org/W3XdRYpm"
+      }
+    },
+    {
+      "id": "fc-lichess-pm009",
+      "fen": "r4rk1/3bqp1n/p2p2p1/2pPp3/2p1P1BP/2P5/P1Q2P2/K1B3RR b - - 0 24",
+      "userColor": "white",
+      "expectedUci": "d7g4",
+      "answerUci": "g1g4",
+      "source": {
+        "white": "Unknown",
+        "black": "Alireza2003",
+        "event": "Lichess wFsfw0Pp",
+        "date": "????.??.??",
+        "ply": 47,
+        "url": "https://lichess.org/wFsfw0Pp"
+      }
+    },
+    {
+      "id": "fc-lichess-pm014",
+      "fen": "2r2k1r/p1q2ppp/Q3p3/3P4/8/2P5/P4PPP/R2R2K1 b - - 0 18",
+      "userColor": "white",
+      "expectedUci": "e6d5",
+      "answerUci": "d1d5",
+      "source": {
+        "white": "BetterCastleSaul",
+        "black": "Unknown",
+        "event": "Lichess TndtLJ2L",
+        "date": "????.??.??",
+        "ply": 36,
+        "url": "https://lichess.org/TndtLJ2L"
+      }
+    },
+    {
+      "id": "fc-lichess-pm015",
+      "fen": "2rqr1k1/pp3pp1/5nN1/3p2R1/3Q4/2N5/PPP2P2/2K4R b - - 0 20",
+      "userColor": "white",
+      "expectedUci": "f7g6",
+      "answerUci": "g5g6",
+      "source": {
+        "white": "Unknown",
+        "black": "BetterCastleSaul",
+        "event": "Lichess 2YuEZkqp",
+        "date": "????.??.??",
+        "ply": 39,
+        "url": "https://lichess.org/2YuEZkqp"
+      }
+    },
+    {
+      "id": "fc-lichess-pm018",
+      "fen": "rr5k/1q3pbp/3p2p1/1Q6/1P6/P3BP2/4B1PP/2R2RK1 b - - 0 27",
+      "userColor": "white",
+      "expectedUci": "b7b5",
+      "answerUci": "e2b5",
+      "source": {
+        "white": "Alireza2003",
+        "black": "Unknown",
+        "event": "Lichess zbX29abQ",
+        "date": "????.??.??",
+        "ply": 54,
+        "url": "https://lichess.org/zbX29abQ"
+      }
+    },
+    {
+      "id": "fc-lichess-pm019",
+      "fen": "6k1/1Br3pp/R2rbp2/1p6/1R6/3P2P1/5P1P/7K b - - 0 32",
+      "userColor": "white",
+      "expectedUci": "d6a6",
+      "answerUci": "b7a6",
+      "source": {
+        "white": "Unknown",
+        "black": "Alireza2003",
+        "event": "Lichess zbX29abQ",
+        "date": "????.??.??",
+        "ply": 63,
+        "url": "https://lichess.org/zbX29abQ"
+      }
+    },
+    {
+      "id": "fc-lichess-pm021",
+      "fen": "3r2k1/5rp1/5p2/p1p1p2p/P1N1PnPP/BP1P2K1/2P2R2/8 b - - 1 40",
+      "userColor": "white",
+      "expectedUci": "h5g4",
+      "answerUci": "g3g4",
+      "source": {
+        "white": "Unknown",
+        "black": "penguingim1",
+        "event": "Lichess PEQGPbcI",
+        "date": "????.??.??",
+        "ply": 79,
+        "url": "https://lichess.org/PEQGPbcI"
+      }
+    },
+    {
+      "id": "fc-lichess-pm024",
+      "fen": "r2q1rk1/pp3ppp/2p2n2/4P1B1/8/3Q3P/PPP2PP1/R3R1K1 b - - 0 16",
+      "userColor": "white",
+      "expectedUci": "d8d3",
+      "answerUci": "c2d3",
+      "source": {
+        "white": "nihalsarin2004",
+        "black": "Unknown",
+        "event": "Lichess MxGkVbys",
+        "date": "????.??.??",
+        "ply": 32,
+        "url": "https://lichess.org/MxGkVbys"
+      }
+    },
+    {
+      "id": "fc-lichess-pm025",
+      "fen": "3r2k1/1p3pp1/7p/3p4/1P1N4/2PR1P2/r2R1KPP/8 b - - 0 31",
+      "userColor": "white",
+      "expectedUci": "a2d2",
+      "answerUci": "d3d2",
+      "source": {
+        "white": "Unknown",
+        "black": "nihalsarin2004",
+        "event": "Lichess MxGkVbys",
+        "date": "????.??.??",
+        "ply": 61,
+        "url": "https://lichess.org/MxGkVbys"
+      }
+    },
+    {
+      "id": "fc-lichess-pm028",
+      "fen": "8/8/p3n3/PP2kppp/2K5/4N1P1/6PP/8 b - - 0 42",
+      "userColor": "white",
+      "expectedUci": "a6b5",
+      "answerUci": "c4b5",
+      "source": {
+        "white": "Unknown",
+        "black": "DrNykterstein",
+        "event": "Lichess SnXhGC57",
+        "date": "????.??.??",
+        "ply": 83,
+        "url": "https://lichess.org/SnXhGC57"
+      }
+    },
+    {
+      "id": "fc-lichess-pm030",
+      "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq d3 0 3",
+      "userColor": "white",
+      "expectedUci": "d5e4",
+      "answerUci": "c3e4",
+      "source": {
+        "white": "Alireza2003",
+        "black": "Unknown",
+        "event": "Lichess Ten1Qizl",
+        "date": "????.??.??",
+        "ply": 6,
+        "url": "https://lichess.org/Ten1Qizl"
+      }
+    },
+    {
+      "id": "fc-lichess-pm031",
+      "fen": "rn1qkb1r/pbp1pppp/1p6/3n4/3PP3/2N2P2/PP4PP/R1BQKBNR b KQkq e3 0 6",
+      "userColor": "white",
+      "expectedUci": "d5c3",
+      "answerUci": "b2c3",
+      "source": {
+        "white": "DrNykterstein",
+        "black": "Unknown",
+        "event": "Lichess haRbNEM1",
+        "date": "????.??.??",
+        "ply": 12,
+        "url": "https://lichess.org/haRbNEM1"
+      }
+    },
+    {
+      "id": "fc-lichess-pm033",
+      "fen": "2kr1b1r/ppp3p1/2n5/8/3PB2p/2P3P1/P1P4P/R1B2RK1 b - - 0 17",
+      "userColor": "white",
+      "expectedUci": "h4g3",
+      "answerUci": "h2g3",
+      "source": {
+        "white": "Unknown",
+        "black": "DrNykterstein",
+        "event": "Lichess SNG5EiHV",
+        "date": "????.??.??",
+        "ply": 33,
+        "url": "https://lichess.org/SNG5EiHV"
+      }
+    },
+    {
+      "id": "fc-lichess-pm034",
+      "fen": "2r4R/1b1nbp2/pq1p1k2/3Pp3/1p2Pp2/1P1B1P2/P2QN1P1/5K1R b - - 0 32",
+      "userColor": "white",
+      "expectedUci": "c8h8",
+      "answerUci": "h1h8",
+      "source": {
+        "white": "Alireza2003",
+        "black": "Unknown",
+        "event": "Lichess 4g7D9qVB",
+        "date": "????.??.??",
+        "ply": 64,
+        "url": "https://lichess.org/4g7D9qVB"
+      }
+    },
+    {
+      "id": "fc-lichess-pm037",
+      "fen": "Rr5k/6p1/2Q2b1p/4p3/1PPp4/1K3N1P/5Pq1/7R b - - 1 35",
+      "userColor": "white",
+      "expectedUci": "b8a8",
+      "answerUci": "c6a8",
+      "source": {
+        "white": "Alireza2003",
+        "black": "Unknown",
+        "event": "Lichess n1lN6FeM",
+        "date": "????.??.??",
+        "ply": 70,
+        "url": "https://lichess.org/n1lN6FeM"
+      }
+    },
+    {
+      "id": "fc-lichess-pm039",
+      "fen": "2r5/r1P4p/8/2R3p1/4pk2/P1R2P2/6KP/8 b - - 0 45",
+      "userColor": "white",
+      "expectedUci": "e4f3",
+      "answerUci": "c3f3",
+      "source": {
+        "white": "DrNykterstein",
+        "black": "Unknown",
+        "event": "Lichess kAdOQKeh",
+        "date": "????.??.??",
+        "ply": 90,
+        "url": "https://lichess.org/kAdOQKeh"
+      }
+    },
+    {
+      "id": "fc-lichess-pm040",
+      "fen": "r5k1/p4ppp/q3p3/2rpPN2/8/2P5/P5PP/R3QR1K b - - 0 20",
+      "userColor": "white",
+      "expectedUci": "e6f5",
+      "answerUci": "f1f5",
+      "source": {
+        "white": "Alireza2003",
+        "black": "Unknown",
+        "event": "Lichess fL59y06E",
+        "date": "????.??.??",
+        "ply": 40,
+        "url": "https://lichess.org/fL59y06E"
+      }
+    },
+    {
+      "id": "fc-lichess-pm043",
+      "fen": "rnbqkbnr/pppp1ppp/8/4p3/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 2",
+      "userColor": "white",
+      "expectedUci": "e5d4",
+      "answerUci": "d1d4",
+      "source": {
+        "white": "Unknown",
+        "black": "BetterCastleSaul",
+        "event": "Lichess TBqcj8WS",
+        "date": "????.??.??",
+        "ply": 3,
+        "url": "https://lichess.org/TBqcj8WS"
+      }
+    },
+    {
+      "id": "fc-lichess-pm052",
+      "fen": "8/3r1pk1/2N2qp1/3P3p/3Q3P/1p4P1/1r3PB1/5RK1 b - - 1 36",
+      "userColor": "white",
+      "expectedUci": "f6d4",
+      "answerUci": "c6d4",
+      "source": {
+        "white": "Unknown",
+        "black": "DrNykterstein",
+        "event": "Lichess ItgC9JQz",
+        "date": "????.??.??",
+        "ply": 71,
+        "url": "https://lichess.org/ItgC9JQz"
+      }
+    },
+    {
+      "id": "fc-lichess-pm060",
+      "fen": "r1bqkb1r/pppn1pp1/3p4/8/3PP1np/4P3/PPPN1BPP/RN1QKB1R b KQkq - 0 10",
+      "userColor": "white",
+      "expectedUci": "g4f2",
+      "answerUci": "e1f2",
+      "source": {
+        "white": "Unknown",
+        "black": "nihalsarin2004",
+        "event": "Lichess xGsqmTKI",
+        "date": "????.??.??",
+        "ply": 19,
+        "url": "https://lichess.org/xGsqmTKI"
+      }
+    },
+    {
+      "id": "fc-lichess-pm062",
+      "fen": "r1bq1rk1/p1p2pbp/2p3p1/3pP3/5Pn1/2N1B3/PPPQ2PP/2KR1B1R b - f3 0 11",
+      "userColor": "white",
+      "expectedUci": "g4e3",
+      "answerUci": "d2e3",
+      "source": {
+        "white": "DrNykterstein",
+        "black": "Unknown",
+        "event": "Lichess SNG5EiHV",
+        "date": "????.??.??",
+        "ply": 22,
+        "url": "https://lichess.org/SNG5EiHV"
+      }
+    },
+    {
+      "id": "fc-lichess-pm064",
+      "fen": "r4rk1/p2nnppp/q3p3/2BpP3/3P1P2/2P2N2/P5PP/R3QR1K b - - 0 16",
+      "userColor": "white",
+      "expectedUci": "d7c5",
+      "answerUci": "d4c5",
+      "source": {
+        "white": "Alireza2003",
+        "black": "Unknown",
+        "event": "Lichess fL59y06E",
+        "date": "????.??.??",
+        "ply": 32,
+        "url": "https://lichess.org/fL59y06E"
+      }
+    },
+    {
+      "id": "fc-lichess-pm072",
+      "fen": "rn2k2r/pbq2pp1/1ppbpn1p/8/3PN3/P2BBN1P/1PPQ1PP1/2KR3R b kq - 2 12",
+      "userColor": "white",
+      "expectedUci": "f6e4",
+      "answerUci": "d3e4",
+      "source": {
+        "white": "BetterCastleSaul",
+        "black": "Unknown",
+        "event": "Lichess fezt2GCo",
+        "date": "????.??.??",
+        "ply": 24,
+        "url": "https://lichess.org/fezt2GCo"
+      }
+    },
+    {
+      "id": "fc-lichess-pm099",
+      "fen": "2r1r1k1/3n1ppp/2p1q3/p7/2Q1P3/1P2BP2/P5PP/3R1RK1 b - - 2 24",
+      "userColor": "white",
+      "expectedUci": "e6c4",
+      "answerUci": "b3c4",
+      "source": {
+        "white": "Unknown",
+        "black": "Alireza2003",
+        "event": "Lichess Ten1Qizl",
+        "date": "????.??.??",
+        "ply": 47,
+        "url": "https://lichess.org/Ten1Qizl"
+      }
+    },
+    {
+      "id": "fc-lichess-pm101",
+      "fen": "r3r1k1/3q1ppp/2n2nb1/p2p4/Bp6/2P1PPN1/PP4PP/R1BQ1RK1 b - - 1 17",
+      "userColor": "white",
+      "expectedUci": "b4c3",
+      "answerUci": "b2c3",
+      "source": {
+        "white": "BetterCastleSaul",
+        "black": "Unknown",
+        "event": "Lichess cLYyfBzx",
+        "date": "????.??.??",
+        "ply": 34,
+        "url": "https://lichess.org/cLYyfBzx"
+      }
+    },
+    {
+      "id": "fc-lichess-pm104",
+      "fen": "r1b1k1nr/bpppqppp/p7/P3n3/8/2P2NN1/1P2PPPP/R1BQKB1R b KQkq - 4 10",
+      "userColor": "white",
+      "expectedUci": "e5f3",
+      "answerUci": "g2f3",
+      "source": {
+        "white": "Unknown",
+        "black": "Alireza2003",
+        "event": "Lichess n1lN6FeM",
+        "date": "????.??.??",
+        "ply": 19,
+        "url": "https://lichess.org/n1lN6FeM"
+      }
+    },
+    {
+      "id": "fc-lichess-pm111",
+      "fen": "r1bqkbnr/pp4pp/2n2p2/2ppp3/4P3/1PN2N2/PBPP1PPP/R2QKB1R b KQkq e3 0 6",
+      "userColor": "white",
+      "expectedUci": "d5e4",
+      "answerUci": "c3e4",
+      "source": {
+        "white": "Unknown",
+        "black": "penguingim1",
+        "event": "Lichess VtHGjkst",
+        "date": "????.??.??",
+        "ply": 11,
+        "url": "https://lichess.org/VtHGjkst"
+      }
+    },
+    {
+      "id": "fc-lichess-pm113",
+      "fen": "r5k1/pnpp1rpp/1p6/3Q2qn/2P5/PNB2PP1/1P3K1P/R6R b - - 1 18",
+      "userColor": "white",
+      "expectedUci": "g5d5",
+      "answerUci": "c4d5",
+      "source": {
+        "white": "penguingim1",
+        "black": "Unknown",
+        "event": "Lichess VtHGjkst",
+        "date": "????.??.??",
+        "ply": 36,
+        "url": "https://lichess.org/VtHGjkst"
+      }
+    },
+    {
+      "id": "fc-lichess-pm115",
+      "fen": "8/3r1rk1/5pp1/p1p4p/P1P5/1P1q1Q1P/3PR1P1/4R2K b - - 2 39",
+      "userColor": "white",
+      "expectedUci": "d3f3",
+      "answerUci": "g2f3",
+      "source": {
+        "white": "Unknown",
+        "black": "penguingim1",
+        "event": "Lichess VtHGjkst",
+        "date": "????.??.??",
+        "ply": 77,
+        "url": "https://lichess.org/VtHGjkst"
+      }
+    },
+    {
+      "id": "fc-lichess-pm118",
+      "fen": "4r2k/5qp1/5r1p/p1p1R3/P1P1Q2P/5PP1/5RK1/8 b - - 6 53",
+      "userColor": "white",
+      "expectedUci": "e8e5",
+      "answerUci": "e4e5",
+      "source": {
+        "white": "penguingim1",
+        "black": "Unknown",
+        "event": "Lichess VtHGjkst",
+        "date": "????.??.??",
+        "ply": 106,
+        "url": "https://lichess.org/VtHGjkst"
+      }
+    },
+    {
+      "id": "fc-lichess-pm132",
+      "fen": "r1bqk1nr/pp4pp/2pbpp2/8/3P1B2/2N2N2/PP1Q1PPP/R4RK1 b kq - 3 11",
+      "userColor": "white",
+      "expectedUci": "d6f4",
+      "answerUci": "d2f4",
+      "source": {
+        "white": "Unknown",
+        "black": "BetterCastleSaul",
+        "event": "Lichess cLYyfBzx",
+        "date": "????.??.??",
+        "ply": 21,
+        "url": "https://lichess.org/cLYyfBzx"
+      }
+    },
+    {
+      "id": "fc-lichess-pm144",
+      "fen": "2r2rk1/4pp2/p2q2pp/1p2N3/3P4/4P1P1/b4PBP/2RQ1RK1 b - - 1 22",
+      "userColor": "white",
+      "expectedUci": "c8c1",
+      "answerUci": "d1c1",
+      "source": {
+        "white": "Unknown",
+        "black": "DrNykterstein",
+        "event": "Lichess ItgC9JQz",
+        "date": "????.??.??",
+        "ply": 43,
+        "url": "https://lichess.org/ItgC9JQz"
+      }
+    },
+    {
+      "id": "fc-lichess-pm145",
+      "fen": "8/3Rb1k1/4rpp1/7p/7P/4R1P1/5PK1/8 b - - 1 48",
+      "userColor": "white",
+      "expectedUci": "e6e3",
+      "answerUci": "f2e3",
+      "source": {
+        "white": "DrNykterstein",
+        "black": "Unknown",
+        "event": "Lichess ItgC9JQz",
+        "date": "????.??.??",
+        "ply": 96,
+        "url": "https://lichess.org/ItgC9JQz"
+      }
+    },
+    {
+      "id": "fc-lichess-pm146",
+      "fen": "rnbq1rk1/pp2ppbp/5np1/3p4/2PP4/2N2N2/PP2BPPP/R1BQ1RK1 b - - 1 9",
+      "userColor": "white",
+      "expectedUci": "d5c4",
+      "answerUci": "e2c4",
+      "source": {
+        "white": "Unknown",
+        "black": "DrNykterstein",
+        "event": "Lichess nrmBGiQF",
+        "date": "????.??.??",
+        "ply": 17,
+        "url": "https://lichess.org/nrmBGiQF"
+      }
+    },
+    {
+      "id": "fc-lichess-pm151",
+      "fen": "r2r1qk1/pb3ppp/1p6/5N2/4P2P/5P2/PQ4P1/3R1RK1 b - h3 0 19",
+      "userColor": "white",
+      "expectedUci": "d8d1",
+      "answerUci": "f1d1",
+      "source": {
+        "white": "DrNykterstein",
+        "black": "Unknown",
+        "event": "Lichess haRbNEM1",
+        "date": "????.??.??",
+        "ply": 38,
+        "url": "https://lichess.org/haRbNEM1"
+      }
+    },
+    {
+      "id": "fc-lichess-pm155",
+      "fen": "r2q1rk1/pp3ppp/2n2n2/3p1b2/8/2PBPP2/PP4PP/R1BQK1NR b KQ - 2 10",
+      "userColor": "white",
+      "expectedUci": "f5d3",
+      "answerUci": "d1d3",
+      "source": {
+        "white": "BetterCastleSaul",
+        "black": "Unknown",
+        "event": "Lichess cLYyfBzx",
+        "date": "????.??.??",
+        "ply": 20,
+        "url": "https://lichess.org/cLYyfBzx"
+      }
+    },
+    {
+      "id": "fc-lichess-pm157",
+      "fen": "r3r1k1/pp1q1ppp/2n2n2/3p1b2/8/2PBPPN1/PP4PP/R1BQK2R b KQ - 6 12",
+      "userColor": "white",
+      "expectedUci": "f5d3",
+      "answerUci": "d1d3",
+      "source": {
+        "white": "BetterCastleSaul",
+        "black": "Unknown",
+        "event": "Lichess cLYyfBzx",
+        "date": "????.??.??",
+        "ply": 24,
+        "url": "https://lichess.org/cLYyfBzx"
+      }
+    },
+    {
+      "id": "fc-lichess-pm184",
+      "fen": "rn1qkb1r/pbpppppp/1p3n2/8/2PP4/5NP1/PP2PP1P/RNBQKB1R b KQkq - 0 4",
+      "userColor": "white",
+      "expectedUci": "b7f3",
+      "answerUci": "e2f3",
+      "source": {
+        "white": "DrNykterstein",
+        "black": "Unknown",
+        "event": "Lichess ItgC9JQz",
+        "date": "????.??.??",
+        "ply": 8,
+        "url": "https://lichess.org/ItgC9JQz"
+      }
+    },
+    {
+      "id": "fc-game-kasparov-deep-blue-1997-3-69",
+      "fen": "1r1b3k/r4p1b/3p3p/pBpNnPp1/2P1PB2/3P4/R5KP/5R2 w - g6 0 35",
+      "userColor": "black",
+      "expectedUci": "f4e5",
+      "answerUci": "d6e5",
+      "source": {
+        "white": "Garry Kasparov",
+        "black": "Deep Blue (Computer)",
+        "event": "IBM Man-Machine, New York USA",
+        "date": "1997.??.??",
+        "ply": 69,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/kasparov-deep-blue-1997.pgn"
+      }
+    },
+    {
+      "id": "fc-game-kasparov-deep-blue-1997-4-71",
+      "fen": "5r2/p1k3p1/2p1n1p1/2npP3/3N2rP/P3P2R/2P1N3/KR6 w - - 0 36",
+      "userColor": "black",
+      "expectedUci": "d4e6",
+      "answerUci": "c5e6",
+      "source": {
+        "white": "Deep Blue (Computer)",
+        "black": "Garry Kasparov",
+        "event": "IBM Man-Machine, New York USA",
+        "date": "1997.??.??",
+        "ply": 71,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/kasparov-deep-blue-1997.pgn"
+      }
+    },
+    {
+      "id": "fc-game-kasparov-deep-blue-1997-4-75",
+      "fen": "5r2/p1k3p1/2p3p1/3pP3/3n2rP/P3P2R/2P5/KR6 w - - 0 38",
+      "userColor": "black",
+      "expectedUci": "e3d4",
+      "answerUci": "g4d4",
+      "source": {
+        "white": "Deep Blue (Computer)",
+        "black": "Garry Kasparov",
+        "event": "IBM Man-Machine, New York USA",
+        "date": "1997.??.??",
+        "ply": 75,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/kasparov-deep-blue-1997.pgn"
+      }
+    },
+    {
+      "id": "fc-game-kasparov-deep-blue-1997-5-42",
+      "fen": "1k1rr3/ppq1bpp1/2p3n1/6Bp/3N2nP/2P3P1/PPQ2PB1/1K1R3R b - - 8 21",
+      "userColor": "white",
+      "expectedUci": "e7g5",
+      "answerUci": "h4g5",
+      "source": {
+        "white": "Garry Kasparov",
+        "black": "Deep Blue (Computer)",
+        "event": "IBM Man-Machine, New York USA",
+        "date": "1997.??.??",
+        "ply": 42,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/kasparov-deep-blue-1997.pgn"
+      }
+    },
+    {
+      "id": "fc-game-kasparov-deep-blue-1997-5-59",
+      "fen": "1k1r4/pp3pp1/1n4q1/2p3Pp/2P3n1/5NP1/PPQ2PB1/1K2R3 w - - 1 30",
+      "userColor": "black",
+      "expectedUci": "c2g6",
+      "answerUci": "f7g6",
+      "source": {
+        "white": "Garry Kasparov",
+        "black": "Deep Blue (Computer)",
+        "event": "IBM Man-Machine, New York USA",
+        "date": "1997.??.??",
+        "ply": 59,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/kasparov-deep-blue-1997.pgn"
+      }
+    },
+    {
+      "id": "fc-game-nepomniachtchi-liren-game1-1-29",
+      "fen": "3r1rk1/1ppqbppp/p1p1n3/5N2/4PBb1/2N1Q3/PPP2PPP/R3R1K1 w - - 11 15",
+      "userColor": "black",
+      "expectedUci": "f5e7",
+      "answerUci": "d7e7",
+      "source": {
+        "white": "Nepomniachtchi, Ian",
+        "black": "Liren, Ding",
+        "event": "FIDE World Championship 2023",
+        "date": "2023.04.09",
+        "ply": 29,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/nepomniachtchi-liren-game1.pgn"
+      }
+    },
+    {
+      "id": "fc-game-nepomniachtchi-liren-game1-1-44",
+      "fen": "3r1rk1/2p1qbp1/1pp1np1p/p7/4P3/P3QPBP/1PP1N1PK/3RR3 b - - 1 22",
+      "userColor": "white",
+      "expectedUci": "d8d1",
+      "answerUci": "e1d1",
+      "source": {
+        "white": "Nepomniachtchi, Ian",
+        "black": "Liren, Ding",
+        "event": "FIDE World Championship 2023",
+        "date": "2023.04.09",
+        "ply": 44,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/nepomniachtchi-liren-game1.pgn"
+      }
+    },
+    {
+      "id": "fc-game-nepomniachtchi-liren-game1-1-73",
+      "fen": "1Q1qb3/6pk/2pBnp2/pp3N1p/2p1PP1P/P1P5/1P4PK/8 w - - 7 37",
+      "userColor": "black",
+      "expectedUci": "b8d8",
+      "answerUci": "e6d8",
+      "source": {
+        "white": "Nepomniachtchi, Ian",
+        "black": "Liren, Ding",
+        "event": "FIDE World Championship 2023",
+        "date": "2023.04.09",
+        "ply": 73,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/nepomniachtchi-liren-game1.pgn"
+      }
+    },
+    {
+      "id": "fc-game-chessbase-empty-line-1-26",
+      "fen": "r1bq1bk1/ppp2rpp/2p1np2/P3N3/4P3/3P1N2/1PP2PPP/R1B1QR1K b - - 0 13",
+      "userColor": "white",
+      "expectedUci": "f6e5",
+      "answerUci": "f3e5",
+      "source": {
+        "white": "Stockfish 8",
+        "black": "AlphaZero",
+        "event": "AlphaZero vs. Stockfish",
+        "date": "2017.12.04",
+        "ply": 26,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/chessbase-empty-line.pgn"
+      }
+    },
+    {
+      "id": "fc-game-chessbase-empty-line-1-50",
+      "fen": "r3qbk1/1bp3pp/8/R1p5/1rNnPP2/1PQPB3/2P3PP/5R1K b - - 0 25",
+      "userColor": "white",
+      "expectedUci": "a8a5",
+      "answerUci": "c4a5",
+      "source": {
+        "white": "Stockfish 8",
+        "black": "AlphaZero",
+        "event": "AlphaZero vs. Stockfish",
+        "date": "2017.12.04",
+        "ply": 50,
+        "url": "https://github.com/niklasf/python-chess/blob/0c6bdaccfcb3b09cdbe94b0f81e948cb2a356015/data/pgn/chessbase-empty-line.pgn"
+      }
     }
   ]
 }

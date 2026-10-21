@@ -10,9 +10,9 @@
 // источника и оценками) + отчёт об отклонённых кандидатах в stdout.
 //
 // Запуск: node tools/build-premove-pool.mjs
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { Chess } from 'chessops/chess';
 import { parseFen, makeFen } from 'chessops/fen';
 import { makeSan } from 'chessops/san';
@@ -20,7 +20,8 @@ import { makeUci, parseUci, opposite } from 'chessops/util';
 import { NodeEngine, ENGINE_VERSION } from './premove-engine.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEPTH = 20;
+const DEPTH = Number(process.env.PREMOVE_DEPTH ?? 20);
+if (!Number.isInteger(DEPTH) || DEPTH < 16) throw new Error('Minimum verification depth is 16');
 
 // --- Пороги. Идентичны src/data/premove-validator.ts.
 const FORCED_CAPTURE_ALT_MARGIN_PAWNS = 1.5;
@@ -76,13 +77,22 @@ function scoreForColor(line, posTurn, perspective) {
   return (posTurn === perspective ? cp : -cp) / 100;
 }
 
-// --- Кэш анализа: fen -> lines. Считаем каждую позицию максимум один раз.
+// --- Cache includes engine, depth and MultiPV; narrower searches cannot hide alternatives.
 const engine = new NodeEngine();
-const cache = new Map();
+const cacheFile = process.env.PREMOVE_ANALYSIS_CACHE;
+const cache = new Map(cacheFile && existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, 'utf8')) : []);
+export function stopEngine() { engine.stop(); }
+export function analysisSnapshot() { return [...cache]; }
 async function linesAt(fen, multipv = 5) {
-  if (cache.has(fen)) return cache.get(fen);
+  const key = JSON.stringify([ENGINE_VERSION, DEPTH, multipv, fen]);
+  if (cache.has(key)) return cache.get(key);
   const lines = await engine.analyse(fen, { depth: DEPTH, multipv });
-  cache.set(fen, lines);
+  if (!lines.length) throw new Error(`Empty engine analysis: ${fen}`);
+  cache.set(key, lines);
+  if (cacheFile) {
+    writeFileSync(`${cacheFile}.tmp`, JSON.stringify([...cache]));
+    renameSync(`${cacheFile}.tmp`, cacheFile);
+  }
   return lines;
 }
 
@@ -109,7 +119,7 @@ function describeCancelRemove(userColor, unexpectedSan, answerSan) {
   return `Играешь ${side}. Премув уже поставлен. Соперник сыграл неожиданно: ${unexpectedSan}. Premove ${answerSan} снимать было надо.`;
 }
 
-async function validateForcedCapture(c) {
+export async function validateForcedCapture(c) {
   const reasons = [];
   const pos = posFromFen(c.fen);
   if (pos.isCheck()) return { rejected: 'в исходной позиции уже шах — исключено на первом этапе' };
@@ -517,6 +527,7 @@ function renderTask(t) {
   lines.push(`      event: ${jsStr(t.source.event)},`);
   lines.push(`      date: ${jsStr(t.source.date)},`);
   lines.push(`      ply: ${t.source.ply},`);
+  if (t.source.url) lines.push(`      url: ${jsStr(t.source.url)},`);
   lines.push(`    },`);
   lines.push(`    evalMeta: { engine: ${jsStr(t.evalMeta.engine)}, depth: ${t.evalMeta.depth} },`);
   if (t.evalPawns !== undefined) lines.push(`    evalPawns: ${t.evalPawns},`);
@@ -524,7 +535,7 @@ function renderTask(t) {
   return lines.join('\n');
 }
 
-function renderPoolFile({ forced, safeUnsafe, cancel }) {
+export function renderPoolFile({ forced, safeUnsafe, cancel }) {
   return `import type { PremoveTask } from './premove-positions';
 
 /**
@@ -551,8 +562,10 @@ ${cancel.map(renderTask).join('\n')}
 `;
 }
 
-main().catch((e) => {
-  console.error(e);
-  engine.stop();
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error(e);
+    engine.stop();
+    process.exitCode = 1;
+  });
+}

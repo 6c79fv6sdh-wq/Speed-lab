@@ -589,8 +589,10 @@ service worker скачает всё в кеш, после этого прило
 | Что | Файл |
 | --- | --- |
 | Линии дебютных репертуаров, SAN | `src/data/repertoire.ts` |
-| Позиции для модуля «Премувы», FEN (рукописные) | `src/data/premove-positions.ts` |
-| Позиции «Форсированное взятие», импортированные | `src/data/premove-forced-imported.ts` |
+| Типы и выбор режима «Премувов» | `src/data/premove-positions.ts` |
+| Активные задания «Премувов» | `src/data/premove-pool.ts` |
+| Дополнительные полные партии — источники позиций | `data/premove-source-games.pgn` |
+| Отчёт проверки расширения пула Stockfish | `data/premove-expansion-audit.json` |
 | Исходный JSON этих позиций | `data/lichess-safe-premove-200-white.json` |
 | Задачи «висящая фигура» | `src/data/puzzles-hanging.ts` |
 | Исходный PGN этих задач | `data/lichess-hanging-piece-200-white.pgn` |
@@ -602,10 +604,11 @@ service worker скачает всё в кеш, после этого прило
 ```bash
 node tools/import-puzzles.mjs data/lichess-hanging-piece-200-white.pgn > src/data/puzzles-hanging.ts
 node tools/import-mate-pack.mjs data/mate-in-1-500.json > src/data/puzzles-mate.ts
-node tools/import-premove-forced.mjs data/lichess-safe-premove-200-white.json > src/data/premove-forced-imported.ts
+node tools/mine-premove-games.mjs
+PREMOVE_ANALYSIS_CACHE=/tmp/premove-expansion-cache.json node tools/expand-premove-pool.mjs
 ```
 
-Каждый скрипт проверяет задачи движком правил и отбрасывает битые: для
+Импортёры проверяют задачи движком правил и отбрасывает битые: для
 «висящей фигуры» — что ход легален и это взятие, для «мата в один ход» —
 что ход легален и после него на доске мат, для позиций «Форсированное
 взятие» — что FEN валиден, ожидаемый ход соперника легален и является
@@ -641,8 +644,9 @@ node tools/import-premove-forced.mjs data/lichess-safe-premove-200-white.json > 
    ниже; и «Сигнал» — Go/No-Go на реакцию и торможение: доска время от
    времени коротко озаряется одним из пяти цветов, жать нужно только на
    зелёный, в любой точке доски. Подробности — раздел «Сигнал» ниже.
-3. **Премувы** — форсированное взятие (в т.ч. 200 реальных задач Lichess),
-   safe/unsafe, отмена.
+3. **Премувы** — 50 проверенных задач на форсированное взятие,
+   8 задач safe/unsafe и 10 задач на отмену. Источники и анализ Stockfish
+   сохранены в данных; серия из 8 задач выбирается случайно без повторов.
 4. **Тактика** — «Что висит?» (200 реальных задач Lichess с темой
    hangingPiece), «Мат в 1» (500 задач, случайная очередь без повторов в серии), «Шах», «Откуда»/«Куда»
    (упражнение на память о ходе соперника, разделённое на два — раньше
