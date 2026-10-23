@@ -28,6 +28,7 @@ import { mountReaction } from './modules/reaction';
 import { mountOpenings } from './modules/openings';
 import { mountScramble } from './modules/scramble';
 import { mountData } from './modules/data';
+import { mountMathLab, mathExercise } from './modules/mathlab';
 
 export interface AppContext {
   calibration: Calibration;
@@ -89,11 +90,16 @@ const GAMES_TAB: Tab = { id: 'games', label: 'Мои партии', mount: mount
 const DATA_TAB: Tab = { id: 'data', label: 'Прогресс', mount: mountData };
 const SETTINGS_TAB: Tab = { id: 'calibration', label: 'Настройки', mount: mountCalibration };
 
-const ALL_TABS: Tab[] = [...TRAINING_TABS, SCRAMBLE_TAB, GAMES_TAB, DATA_TAB, SETTINGS_TAB];
+const MATH_TABS: Tab[] = [
+  { id: 'math', label: 'Математика', mount: mountMathLab },
+  ...(['glance', 'builder', 'friends', 'bridge'] as const).map(id => ({ id: `math-${id}`, label: 'Математика', mount: mathExercise(id) })),
+];
+const ALL_TABS: Tab[] = [...MATH_TABS, ...TRAINING_TABS, SCRAMBLE_TAB, GAMES_TAB, DATA_TAB, SETTINGS_TAB];
 
 /** Пункты верхнего ряда: группа «Тренировки» + три самостоятельных экрана. */
 const TOP_ENTRIES: Array<{ id: string; label: string; group: boolean }> = [
   { id: TRAINING_GROUP_ID, label: 'Тренировки', group: true },
+  { id: 'math', label: 'Математика', group: false },
   { id: SCRAMBLE_TAB.id, label: SCRAMBLE_TAB.label, group: false },
   { id: GAMES_TAB.id, label: GAMES_TAB.label, group: false },
   { id: DATA_TAB.id, label: DATA_TAB.label, group: false },
@@ -205,7 +211,7 @@ async function boot(): Promise<void> {
    */
   const updateNavState = (id: string | null) => {
     const inTraining = id !== null && TRAINING_IDS.has(id);
-    for (const [k, b] of topButtons) b.classList.toggle('active', k === TRAINING_GROUP_ID ? inTraining : k === id);
+    for (const [k, b] of topButtons) b.classList.toggle('active', k === TRAINING_GROUP_ID ? inTraining : k === 'math' ? id === 'math' || !!id?.startsWith('math-') : k === id);
     for (const [k, b] of subButtons) b.classList.toggle('active', k === id);
     secondaryRow.classList.toggle('visible', inTraining);
     settingsBtn.classList.toggle('active', id === SETTINGS_TAB.id);
@@ -261,6 +267,7 @@ async function boot(): Promise<void> {
   // Первый запуск на устройстве — сначала короткая первоначальная
   // настройка. Дальше она в основную навигацию не возвращается: живёт
   // кнопкой «Настройки».
+  const initial = location.hash.replace('#', '');
   let firstRun = false;
   try {
     firstRun = !(await hasSavedCalibration());
@@ -272,14 +279,13 @@ async function boot(): Promise<void> {
     mountView(
       firstRunSetup(() => {
         nav.classList.remove('setup-mode');
-        show('today');
+        show(MATH_TABS.some(t => t.id === initial) ? initial : 'today');
       }),
       null,
     );
     return;
   }
 
-  const initial = location.hash.replace('#', '');
   show(ALL_TABS.some((t) => t.id === initial) ? initial : 'today');
 }
 
