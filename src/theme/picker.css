@@ -1,0 +1,12 @@
+.ui-theme-dialog {
+  width: min(340px, calc(100vw - 32px));
+  padding: 20px;
+  color: var(--fg-strong);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.ui-theme-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+.ui-theme-dialog > .seg { margin: 18px 0; }
+.ui-theme-dialog > .btn { min-height: 44px; }
+.ui-theme-dialog .seg-btn { min-height: 44px; }

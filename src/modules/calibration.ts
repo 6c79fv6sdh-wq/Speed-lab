@@ -1,3 +1,4 @@
+import { availableUiThemes, currentUiTheme, setUiTheme } from '../theme/manager';
 import { mountDataSettings } from './settings-data';
 import { reportStorageError } from '../core/storage-error';
 import type { AppContext, MountFn, Unmount } from '../main';
@@ -268,6 +269,13 @@ function mountCalibrationView(
     void ctx.signOut().catch(reportStorageError);
   });
 
+  const interfaceTheme = segmented(availableUiThemes().map(t => ({ value: t.id, label: t.label })), currentUiTheme(), value => {
+    setUiTheme(value);
+  });
+
+  const syncInterfaceTheme = () => interfaceTheme.set(currentUiTheme());
+  window.addEventListener('chesslab-theme-change', syncInterfaceTheme);
+
   root.append(
     panel('Профиль', [
       el('div', { class: 'row' }, [
@@ -288,6 +296,7 @@ function mountCalibrationView(
       resetBtn,
     ]),
     panel('Оформление', [
+      ...(!opts.firstRun ? [el('div', { class: 'row', 'aria-label': 'Тема интерфейса' }, [el('label', {}, ['Интерфейс']), interfaceTheme.root]), el('p', { class: 'hint' }, ['Чтобы сменить тему во время тренировки, удерживай значок настроек.'])] : []),
       el('div', { class: 'row' }, [el('label', {}, ['Доска']), themeSeg.root]),
       el('div', { class: 'row' }, [el('label', {}, ['Фигуры']), pieceSeg.root]),
       creditEl,
@@ -340,6 +349,7 @@ function mountCalibrationView(
 
   return () => {
     unmountDataSettings();
+    window.removeEventListener('chesslab-theme-change', syncInterfaceTheme);
     cancelAnimationFrame(firstSync);
     window.removeEventListener('resize', onViewport);
     window.removeEventListener('orientationchange', onViewport);

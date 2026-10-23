@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "node e2e/check.mjs",
     "test:touch": "node e2e/touch.mjs",
-    "test:math": "node e2e/mathlab-check.mjs"
+    "test:math": "node e2e/mathlab-check.mjs",
+    "test:themes": "node e2e/theme-check.mjs"
   },
   "dependencies": {
     "@lichess-org/zerofish": "^0.0.40",

@@ -1,4 +1,7 @@
 import './styles.css';
+import { initializeUiTheme } from './theme/manager';
+import { installQuickThemePicker } from './theme/picker';
+initializeUiTheme();
 import {
   hasSavedCalibration,
   loadCalibration,
@@ -257,6 +260,7 @@ async function boot(): Promise<void> {
   const settingsBtn = el('button', { class: 'icon-btn', type: 'button', 'aria-label': SETTINGS_TAB.label });
   settingsBtn.innerHTML = SETTINGS_ICON;
   settingsBtn.addEventListener('click', () => show(SETTINGS_TAB.id));
+  installQuickThemePicker(settingsBtn);
   primaryRow.append(settingsBtn);
 
   window.addEventListener('hashchange', () => {

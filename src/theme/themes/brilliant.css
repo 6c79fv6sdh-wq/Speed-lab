@@ -1,0 +1,168 @@
+/* Optional visual layer. Classic Dark remains entirely in the untouched styles.css. */
+:root[data-ui-theme='brilliant'] {
+  --bg-page: #0b1318;
+  --bg-panel: #172227;
+  --bg-surface: #101b20;
+  --control-bg: #0d171b;
+  --control-bg-active: #164143;
+  --accent-primary: #2bd6c5;
+  --accent-hover: #43e2d2;
+  --border-default: #2a3b40;
+  --border-active: #32c8ba;
+  --text-primary: #edf7f7;
+  --text-secondary: #afbfc2;
+  --text-muted: #91a5a8;
+  --text-on-accent: #092021;
+  --state-success: #76cf93;
+  --state-error: #f19797;
+  --state-warning: #e8bb72;
+  --focus-ring: #65e6db;
+  --shadow-panel: 0 8px 24px -18px rgba(0, 0, 0, .7);
+  --shadow-control: inset 0 1px 0 rgba(237, 247, 247, .025);
+  /* Compatibility bridge to the existing semantic variables. No geometry changes. */
+  --bg: var(--bg-page);
+  --panel: var(--bg-panel);
+  --panel-hi: var(--bg-panel);
+  --panel-lo: var(--bg-panel);
+  --panel2: var(--bg-surface);
+  --well: var(--control-bg);
+  --fg: var(--text-secondary);
+  --fg-strong: var(--text-primary);
+  --accent: var(--accent-primary);
+  --accent-hi: var(--accent-hover);
+  --accent2: var(--accent-primary);
+  --accent-glow: transparent;
+  --accent-soft: transparent;
+  --led: var(--accent-primary);
+  --led-glow: transparent;
+  --border: var(--border-default);
+  --border-soft: var(--border-default);
+  --brushed: var(--bg-panel);
+  --ok: var(--state-success);
+  --danger: var(--state-error);
+  --warn: var(--state-warning);
+  color-scheme: dark;
+  scrollbar-color: var(--border-default) var(--bg-page);
+}
+[data-ui-theme='brilliant'] :is(html, body) { background: var(--bg-page); }
+[data-ui-theme='brilliant'] .panel { box-shadow: var(--shadow-panel); }
+[data-ui-theme='brilliant'] :is(.btn, .seg-btn, .move-chip, .plan-step) {
+  background: var(--control-bg);
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-control);
+  color: var(--text-secondary);
+}
+[data-ui-theme='brilliant'] :is(.btn, .seg-btn, .move-chip):hover:not(:disabled):not(:where(.active, .current)) {
+  background: var(--bg-surface);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+[data-ui-theme='brilliant'] :is(.seg-btn.active, .tab-primary.active, .move-chip.current, .plan-step.current) {
+  background: var(--control-bg-active);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+  box-shadow: var(--shadow-control);
+}
+[data-ui-theme='brilliant'] :is(.btn.primary, .mathlab .btn.ml-primary) {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+[data-ui-theme='brilliant'] :is(.btn.primary, .mathlab .btn.ml-primary):hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: var(--text-on-accent);
+  filter: none;
+}
+[data-ui-theme='brilliant'] .btn:active { box-shadow: none; }
+[data-ui-theme='brilliant'] .btn.danger {
+  background: var(--bg-surface);
+  color: var(--state-error);
+  border-color: var(--state-error);
+}
+[data-ui-theme='brilliant'] :is(.btn, .seg-btn):disabled {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  color: var(--text-muted);
+  opacity: .65;
+  box-shadow: none;
+}
+[data-ui-theme='brilliant'] :is(input[type='text'], input[type='number'], textarea, select) {
+  border-color: var(--border-default);
+  background: var(--bg-surface);
+  box-shadow: none;
+}
+[data-ui-theme='brilliant'] :is(input, textarea, select):focus {
+  border-color: var(--border-active);
+  box-shadow: none;
+}
+[data-ui-theme='brilliant'] :is(button, a, input, select, textarea, summary):focus-visible:not(:where(.hl-board, .hl-board *, .ks-board, .ks-board *, .sn-board, .sn-board *)) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+[data-ui-theme='brilliant'] :is(.hint, .muted, .stat-k, .metric-k, .clock-label, .brand-by, .credit-by, .hero-modules, .plan-step-desc) {
+  color: var(--text-muted);
+  opacity: 1;
+}
+[data-ui-theme='brilliant'] h2 { opacity: 1; }
+[data-ui-theme='brilliant'] :is(.verdict-ok, .mathlab .ml-correct) { color: var(--state-success); }
+[data-ui-theme='brilliant'] .verdict-bad { color: var(--state-error); }
+[data-ui-theme='brilliant'] .tbl th { background: var(--bg-surface); }
+[data-ui-theme='brilliant'] :is(.progress > div, .sn-time-fill) { background: var(--accent-primary); box-shadow: none; }
+[data-ui-theme='brilliant'] .clock.active { border-color: var(--border-active); box-shadow: none; }
+[data-ui-theme='brilliant'] .bot-avatar.active .bot-avatar-face { background: var(--control-bg-active); }
+[data-ui-theme='brilliant'] .bot-avatar.active .bot-avatar-ring { box-shadow: none; }
+[data-ui-theme='brilliant'] .sn-level-button[aria-pressed='true'] {
+  background: var(--control-bg-active);
+  border-color: var(--border-active);
+  color: var(--text-primary);
+}
+[data-ui-theme='brilliant'] .mathlab {
+  --ml-teal: var(--accent-primary);
+  --ml-line: var(--border-default);
+  --ml-bg: var(--control-bg-active);
+}
+[data-ui-theme='brilliant'] .mathlab [aria-pressed='true'] {
+  background: var(--control-bg-active);
+  border-color: var(--border-active);
+}
+/* The educational amber group, successful answers and board markings keep their meaning.
+   Protect board-local inherited accents used by knight-scan/Snapshot targets too. */
+[data-ui-theme='brilliant'] :is(.hl-board, .ks-board, .sn-board) {
+  color: #a3b0aa;
+  --fg: #a3b0aa;
+  --fg-strong: #eaf0ec;
+  --accent: #1d7a52;
+  --accent-hi: #26a473;
+  --accent-glow: rgba(31, 150, 96, .45);
+  --led: #34c98a;
+  --led-glow: rgba(52, 201, 138, .55);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ui-theme='brilliant'] :is(.btn, .seg-btn, .tab-primary, .tab-secondary, input, select) {
+    transition: none;
+  }
+}
+/* Shared secondary surfaces and completion semantics. */
+[data-ui-theme='brilliant'] :is(.metric, .clock, .log) {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  box-shadow: none;
+}
+[data-ui-theme='brilliant'] .tab-secondary { color: var(--text-muted); opacity: 1; }
+[data-ui-theme='brilliant'] .tab-secondary.active { color: var(--text-primary); }
+[data-ui-theme='brilliant'] .plan-mark.done {
+  color: var(--state-success);
+  border-color: var(--state-success);
+  background: var(--bg-surface);
+  box-shadow: none;
+}
+[data-ui-theme='brilliant'] label { color: var(--text-secondary); opacity: 1; }
+/* Respect semantic visibility even where a legacy .btn has explicit display. */
+[data-ui-theme='brilliant'] [hidden] { display: none; }
+[data-ui-theme='brilliant'] .exercise-seg.is-live .seg-btn.active::before {
+  animation: none;
+  transform: none;
+  opacity: 1;
+  box-shadow: none;
+}

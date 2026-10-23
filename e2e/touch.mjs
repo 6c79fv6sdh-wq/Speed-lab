@@ -20,6 +20,7 @@ const assert=(ok,message)=>{if(!ok)throw Error(message)};
 try{
  for(const mode of ['select','both','drag']){
   const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  if(process.env.UI_THEME)await page.addInitScript(theme=>localStorage.setItem('chesslab.theme',theme),process.env.UI_THEME);
   await page.goto(base);
   await page.evaluate(async mode=>{
    const {Board}=await import('/src/board/board.ts');const {INITIAL_FEN,dests,posFromFen}=await import('/src/core/chess.ts');
