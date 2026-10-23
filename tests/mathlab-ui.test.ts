@@ -9,7 +9,7 @@ const select=(label:string,value:string)=>{const control=root.querySelector<HTML
 const input=(label:string,value:string)=>{const control=root.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;control.value=value;control.dispatchEvent(new Event('change',{bubbles:true}));return control;};
 function answer(value:string){input('Ответ',value);root.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));}
 beforeEach(()=>{vi.useFakeTimers();root=document.createElement('div');document.body.append(root);});
-afterEach(()=>{unmount?.();vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();document.body.replaceChildren();});
+afterEach(()=>{unmount?.();vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();document.body.replaceChildren();});
 it('updates the builder live, persists the selected whole and never leaks the unknown',()=>{
  unmount=mathExercise('builder')(root,ctx());input('Целое число','5');const range=root.querySelector<HTMLInputElement>('input[type=range]')!;range.value='2';range.dispatchEvent(new Event('input'));expect(root.textContent).toContain('5 = 2 + 3');button('Поменять местами').click();expect(root.textContent).toContain('5 = 3 + 2');
  select('Режим','train');button('Начать').click();expect(root.querySelector('input[type=range]')).toBeNull();expect(root.querySelector('.ml-parts')).toBeNull();expect(root.textContent).toContain('?');
@@ -81,4 +81,17 @@ it('handles a touch-style zero-detail compatibility click exactly once',()=>{
  root.querySelector<HTMLButtonElement>('[data-side=left][data-index="8"]')!.click();
  expect(root.querySelector('[data-side=left][data-index="8"] .ml-ball')).not.toBeNull();
  expect(root.querySelectorAll('.ml-boxes .ml-ball')).toHaveLength(13);
+});
+
+it.each([true,false])('keeps keypad answers usable without opening the touch keyboard (touch=%s)',async touch=>{
+ vi.stubGlobal('matchMedia',()=>({matches:touch}));
+ unmount=mathExercise('glance')(root,ctx());select('Время показа','500');button('Начать').click();
+ await vi.advanceTimersByTimeAsync(1100);
+ const field=root.querySelector<HTMLInputElement>('input[aria-label="Ответ"]')!;
+ expect(document.activeElement===field).toBe(!touch);
+ const digit=[...root.querySelectorAll<HTMLButtonElement>('.ml-keypad button')].find(b=>b.textContent==='7')!;
+ digit.focus();digit.click();expect(field.value).toBe('7');expect(document.activeElement===field).toBe(!touch);
+ // Explicit field editing and Enter/form submission remain available.
+ field.focus();field.value='0';root.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));
+ expect(root.textContent).toContain('Правильный ответ');
 });

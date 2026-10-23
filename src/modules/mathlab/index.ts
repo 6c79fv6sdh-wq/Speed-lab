@@ -200,7 +200,16 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   if(document.hidden){onVisibility();return;}
   later(()=>{if(document.hidden){onVisibility();return;}phase='show';currentDots=taskDots;surface.replaceChildren(taskDots);const bar=el('div',{class:'ml-exposure','aria-hidden':'true'},[el('span',{style:`animation-duration:${settings.exposure}ms`})]);surface.append(bar);
    later(()=>{if(phase!=='show')return;phase='answer';currentDots=null;surface.replaceChildren(el('p',{class:'ml-instruction'},['Сколько было точек?']));taskStart=performance.now();const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);
-    const pad=el('div',{class:'ml-keypad','aria-label':'Количество точек'});for(let n=1;n<=10;n++)pad.append(button(String(n),()=>{answer.inputs[0].value=String(n);answer.inputs[0].focus({preventScroll:true});}));surface.append(pad);answer.inputs[0].focus({preventScroll:true});
+    // Programmatic input focus opens the software keyboard on tablets.
+    // Keep direct field editing available, but keypad choices need no input focus.
+    const touchInput=!!window.matchMedia?.('(any-pointer: coarse)').matches||navigator.maxTouchPoints>0;
+    const input=answer.inputs[0];
+    const pad=el('div',{class:'ml-keypad','aria-label':'Количество точек'});
+    for(let n=1;n<=10;n++)pad.append(button(String(n),()=>{
+     input.value=String(n);
+     if(touchInput)input.blur();else input.focus({preventScroll:true});
+    }));
+    surface.append(pad);if(!touchInput)input.focus({preventScroll:true});
    },settings.exposure);
   },600);
  }
