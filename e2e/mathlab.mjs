@@ -75,6 +75,14 @@ try{
   for(let i=0;i<5;i++){const [a,b]=(await page.locator('.ml-equation').innerText()).match(/\d+/g).map(Number);check(await page.locator('.ml-boxes').count()===0,name+': mental mode needs no invisible drag');await page.getByLabel('До десятки не хватает',{exact:true}).fill(String(10-a));await page.getByLabel('Останется во второй части',{exact:true}).fill(String(a+b-10));await enter(i===0?99:a+b,'Сумма');await next(i===4);}await finish();
   check(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),name+': no horizontal overflow');
   if(name==='phone'){await page.setViewportSize({width:320,height:740});await go('bridge');await option('Режим','explore');await option('Помощь','1');check(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),'320px: boxes fit without horizontal overflow');}
+  await page.goto(base+'#calibration');await page.locator('.settings-page').waitFor();
+  check(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),name+': settings fit viewport');
+  check(await page.locator('.settings-page .seg-btn').evaluateAll(buttons=>buttons.every(b=>b.getBoundingClientRect().height>=44)),name+': settings touch targets');
+  if(name==='desktop'){
+   const portal=await page.locator('.math-portal-link').boundingBox(),gear=await page.locator('#tabs-primary>.icon-btn').boundingBox();
+   check(gear.x-portal.x-portal.width>=18,name+': MathLab separated from settings');
+  }
+  await page.screenshot({path:`${screenshots}/settings-${name}.png`,fullPage:true});
   await page.locator('#tabs').getByRole('button',{name:'Тренировки',exact:true}).click();await page.locator('#tabs').getByRole('button',{name:'Моторика',exact:true}).click();await page.getByRole('button',{name:'Старт',exact:true}).click();check(await page.locator('cg-board').count()>0,name+': chess still starts');
   check(errors.length===0,name+': no JavaScript errors '+errors.join('; '));await context.close();
  }

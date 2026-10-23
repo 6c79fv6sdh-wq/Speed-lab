@@ -44,10 +44,13 @@ export function firstRunSetup(onDone: () => void): MountFn {
 }
 
 function mountCalibrationView(
-  root: HTMLElement,
+  host: HTMLElement,
   ctx: AppContext,
   opts: CalibrationOptions,
 ): Unmount {
+  const root = el('div', { class: 'settings-page' });
+  host.append(root);
+
   const cal: Calibration = { ...ctx.calibration };
 
   root.append(el('h1', {}, [opts.firstRun ? 'Настройка перед первой тренировкой' : 'Настройки']));
@@ -192,6 +195,7 @@ function mountCalibrationView(
   const pointerInput = el('input', {
     type: 'text',
     placeholder: 'например: DPI 1600, скорость 5/10, ускорение выкл',
+    'aria-label': 'Метка настроек указателя',
   }) as HTMLInputElement;
   pointerInput.value = cal.pointerLabel;
   pointerInput.addEventListener('input', () => {
@@ -288,13 +292,6 @@ function mountCalibrationView(
         'другому — «Выйти» и набрать своё имя.',
       ]),
     ]),
-    panel('Проверка доски', [
-      el('div', { class: 'board-area' }, [boardHost]),
-      el('p', { class: 'hint' }, [
-        'Доска здесь только для проверки ощущений от ввода, ходы не записываются.',
-      ]),
-      resetBtn,
-    ]),
     panel('Оформление', [
       ...(!opts.firstRun ? [el('div', { class: 'row', 'aria-label': 'Тема интерфейса' }, [el('label', {}, ['Интерфейс']), interfaceTheme.root]), el('p', { class: 'hint' }, ['Чтобы сменить тему во время тренировки, удерживай значок настроек.'])] : []),
       el('div', { class: 'row' }, [el('label', {}, ['Доска']), themeSeg.root]),
@@ -315,6 +312,12 @@ function mountCalibrationView(
       ]),
     ]),
   );
+
+  root.append(panel('Проверка доски', [
+    el('div', { class: 'board-area' }, [boardHost]),
+    el('p', { class: 'hint' }, ['Доска здесь только для проверки ощущений от ввода, ходы не записываются.']),
+    resetBtn,
+  ]));
 
   let unmountDataSettings: Unmount = () => {};
   if (!opts.firstRun) {

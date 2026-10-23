@@ -52,7 +52,9 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  function clear(){for(const t of timers)window.clearTimeout(t);timers=[];cleanVisual?.();cleanVisual=null;}
  function refreshHistory(){history(recentBody,store.results().filter(r=>r.exercise===id));}
  function persist(){if(!store.saveSettings(id,settings))savedNotice.textContent='Настройки действуют в этой вкладке. Постоянное сохранение сейчас недоступно.';}
- function field(label:string,control:HTMLElement){fields.append(el('label',{class:'ml-field'},[el('span',{},[label]),control]));}
+ let fieldGroup:HTMLElement=fields;
+ function settingGroup(title:string){fieldGroup=el('div',{class:'ml-setting-group',role:'group','aria-label':title},[el('h3',{},[title])]);fields.append(fieldGroup);}
+ function field(label:string,control:HTMLElement){fieldGroup.append(el('label',{class:'ml-field'},[el('span',{},[label]),control]));}
  function select<K extends keyof MathSettings>(key:K,label:string,options:[string|number,string][]) {
   const control=el('select',{'aria-label':label});
   for(const [value,text] of options){const option=el('option',{value:String(value)},[text]);option.selected=String(settings[key])===String(value);control.append(option);}
@@ -62,35 +64,40 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   const input=el('input',{type:'number',min:String(min),max:String(max),value:String(settings[key]),'aria-label':label});
   input.addEventListener('change',()=>{const v=Number(input.value);settings[key]=Math.max(min,Math.min(max,Number.isInteger(v)?v:min));if(key==='min')settings.max=Math.max(settings.min,settings.max);if(key==='max')settings.min=Math.min(settings.min,settings.max);changed();});field(label,input);
  }
- function checkbox(key:'frame'|'edges'|'auto'|'moving',label:string){const input=el('input',{type:'checkbox'});input.checked=settings[key];input.addEventListener('change',()=>{settings[key]=input.checked;changed();});field(label,input);}
+ function checkbox(key:'frame'|'edges'|'auto'|'moving',label:string){const input=el('input',{type:'checkbox'});input.checked=settings[key];input.addEventListener('change',()=>{settings[key]=input.checked;changed();});field(label,input);input.closest('label')?.classList.add('ml-toggle-field');}
  function renderSettings(){
-  fields.replaceChildren();
+  fields.replaceChildren();settingGroup('Серия');
   select('mode','Режим',id==='builder'||id==='bridge'?[['explore','Исследование'],['train',id==='builder'?'Найди неизвестную часть':'Тренировка']]:[['learn','Обучение'],['train','Тренировка']]);
   if(settings.mode!=='explore')select('count','Заданий в серии',[[5,'5'],[10,'10'],[20,'20'],[30,'30']]);
   if(id==='glance'){
+   settingGroup('Количество точек');
    const range=el('select',{'aria-label':'Количество точек'});
    for(const [value,label] of [['4','1–4: небольшие количества'],['5','1–5'],['10','1–10'],['custom','Свой диапазон']]){const option=el('option',{value},[label]);option.selected=settings.min===1&&String(settings.max)===value||value==='custom'&&(settings.min!==1||![4,5,10].includes(settings.max));range.append(option);}
    range.addEventListener('change',()=>{if(range.value==='custom'){settings.min=2;settings.max=8;}else{settings.min=1;settings.max=Number(range.value);}changed();});field('Количество точек',range);
    numberSetting('min','От',1,10);numberSetting('max','До',1,10);
+   settingGroup('Показ');
    select('exposure','Время показа',[[500,'0,5 секунды'],[1000,'1 секунда'],[2000,'2 секунды'],[3000,'3 секунды'],[5000,'5 секунд']]);
-   checkbox('moving','Движущиеся точки');
    select('layout','Расположение', [['standard','Закономерные формы'],['groups','Группы и рамка десятки'],['random','Случайное; от 5 точек — группы']]);
+   checkbox('moving','Движущиеся точки');
   }
   if(id==='builder'&&settings.mode==='train'){
+   settingGroup('Состав числа');
    numberSetting('min','Числа от',2,10);numberSetting('max','Числа до',2,10);
    select('unknown','Неизвестная часть',[['first','Первая'],['second','Вторая'],['random','Случайная']]);
   }
   if(id==='friends'){
+   settingGroup('Задания и подсказки');
    select('level','Уровень',[[1,'1 · С рамкой'],[2,'2 · Без подсказки'],[3,'3 · Смешанная серия']]);
    checkbox('frame','Показывать рамку');checkbox('edges','Включить 0 + 10 и 10 + 0');checkbox('auto','Переходить дальше автоматически');
    const group=el('div',{class:'ml-number-choices',role:'group','aria-label':'Числа в заданиях'});
    for(let n=1;n<=9;n++){const b=button(String(n),()=>{if(settings.numbers.includes(n)){if(settings.numbers.length===1)return;settings.numbers=settings.numbers.filter(v=>v!==n);}else settings.numbers=[...settings.numbers,n].sort((a,b)=>a-b);changed();});b.setAttribute('aria-pressed',String(settings.numbers.includes(n)));group.append(b);}field('Числа в заданиях',group);
   }
   if(id==='bridge'){
+   settingGroup('Задание');
    select('level','Помощь',[[1,'1 · Обучение'],[2,'2 · Самостоятельно'],[3,'3 · В уме']]);
    if(settings.mode==='explore'){numberSetting('a','Первое число',1,9);numberSetting('b','Второе число',1,9);}
   }
-  const reset=button('Настройки по умолчанию',()=>{settings=defaults(id);changed();});fields.append(reset);
+  const reset=button('Настройки по умолчанию',()=>{settings=defaults(id);changed();});fields.append(el('div',{class:'ml-settings-footer'},[reset]));
  }
  function changed(){clear();series=null;phase='idle';task=null;boxes=null;persist();renderSettings();renderIdle();}
  function renderIdle(){
