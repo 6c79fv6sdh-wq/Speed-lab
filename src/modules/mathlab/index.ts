@@ -62,7 +62,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   const input=el('input',{type:'number',min:String(min),max:String(max),value:String(settings[key]),'aria-label':label});
   input.addEventListener('change',()=>{const v=Number(input.value);settings[key]=Math.max(min,Math.min(max,Number.isInteger(v)?v:min));if(key==='min')settings.max=Math.max(settings.min,settings.max);if(key==='max')settings.min=Math.min(settings.min,settings.max);changed();});field(label,input);
  }
- function checkbox(key:'frame'|'edges'|'auto',label:string){const input=el('input',{type:'checkbox'});input.checked=settings[key];input.addEventListener('change',()=>{settings[key]=input.checked;changed();});field(label,input);}
+ function checkbox(key:'frame'|'edges'|'auto'|'moving',label:string){const input=el('input',{type:'checkbox'});input.checked=settings[key];input.addEventListener('change',()=>{settings[key]=input.checked;changed();});field(label,input);}
  function renderSettings(){
   fields.replaceChildren();
   select('mode','Режим',id==='builder'||id==='bridge'?[['explore','Исследование'],['train',id==='builder'?'Найди неизвестную часть':'Тренировка']]:[['learn','Обучение'],['train','Тренировка']]);
@@ -73,6 +73,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    range.addEventListener('change',()=>{if(range.value==='custom'){settings.min=2;settings.max=8;}else{settings.min=1;settings.max=Number(range.value);}changed();});field('Количество точек',range);
    numberSetting('min','От',1,10);numberSetting('max','До',1,10);
    select('exposure','Время показа',[[500,'0,5 секунды'],[1000,'1 секунда'],[2000,'2 секунды'],[3000,'3 секунды'],[5000,'5 секунд']]);
+   checkbox('moving','Движущиеся точки');
    select('layout','Расположение', [['standard','Закономерные формы'],['groups','Группы и рамка десятки'],['random','Случайное; от 5 точек — группы']]);
   }
   if(id==='builder'&&settings.mode==='train'){
@@ -174,10 +175,11 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  function drawBuilder(){
   surface.replaceChildren();let whole=settings.whole,part=settings.part,flipped=false;const wholeInput=el('input',{type:'number',min:'2',max:'10',value:String(whole),'aria-label':'Целое число'});
   const eq=expression('');const visual=el('div');const slider=el('input',{type:'range',min:'0',max:'8',step:'1',value:'8','aria-label':'Первая часть'});
-  const update=()=>{[part]=split(whole,part);slider.max=String(whole);slider.value=String(part);slider.setAttribute('aria-valuetext',`${part} и ${whole-part}`);eq.textContent=`${whole} = ${part} + ${whole-part}`;eq.setAttribute('aria-label',eq.textContent);visual.replaceChildren(builderVisual(whole,part,flipped));settings.whole=whole;settings.part=part;persist();};
+  const rail=el('div',{class:'ml-splitter'});const ticks=el('div',{class:'ml-split-ticks','aria-hidden':'true'});const handle=el('span',{class:'ml-split-handle','aria-hidden':'true'},['↔']);rail.append(slider,handle,ticks);
+  const update=()=>{[part]=split(whole,part);rail.style.setProperty('--split',`${100*part/whole}%`);rail.classList.toggle('ml-flipped',flipped);ticks.replaceChildren(...Array.from({length:whole+1},(_,i)=>el('span',{},[String(i)])));slider.max=String(whole);slider.value=String(part);slider.setAttribute('aria-valuetext',`${part} и ${whole-part}`);eq.textContent=`${whole} = ${part} + ${whole-part}`;eq.setAttribute('aria-label',eq.textContent);visual.replaceChildren(builderVisual(whole,part,flipped));settings.whole=whole;settings.part=part;persist();};
   const changeWhole=(value:number)=>{whole=Math.max(2,Math.min(10,Number.isInteger(value)?value:2));wholeInput.value=String(whole);part=Math.min(part,whole);update();};
   wholeInput.addEventListener('change',()=>changeWhole(Number(wholeInput.value)));slider.addEventListener('input',()=>{part=Number(slider.value);update();});
-  surface.append(el('div',{class:'ml-whole-picker'},[button('−',()=>changeWhole(whole-1)),el('label',{},['Число ',wholeInput]),button('+',()=>changeWhole(whole+1))]),eq,visual,slider,el('div',{class:'ml-legend'},['● Первая группа · ◉ Вторая группа']),button('Поменять местами',()=>{part=whole-part;flipped=!flipped;update();}));update();
+  surface.append(el('div',{class:'ml-whole-picker'},[button('−',()=>changeWhole(whole-1)),el('label',{},['Число ',wholeInput]),button('+',()=>changeWhole(whole+1))]),eq,visual,el('p',{class:'ml-legend'},['Передвигай разделитель или нажимай на шкалу']),rail,el('div',{class:'ml-legend'},['● Первая группа · ◉ Вторая группа']),button('Поменять местами',()=>{part=whole-part;flipped=!flipped;update();}));update();
  }
  function drawMissing(){if(!task)return;surface.replaceChildren(expression(`${task.whole} = ${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`));const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);}
  function drawFriends(){if(!task)return;const text=`${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`;surface.replaceChildren(expression(task.reverse?`10 = ${text}`:`${text} = 10`));
@@ -187,7 +189,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  }
  function drawGlance(){
   if(!task)return;phase='prepare';surface.replaceChildren(el('p',{class:'ml-ready',role:'status'},['Приготовься']));
-  const taskDots=dots(task.whole,settings.layout);dotsReplay=taskDots;currentDots=null;
+  const taskDots=dots(task.whole,settings.layout);dotsReplay=taskDots.cloneNode(true) as HTMLElement;if(settings.moving)taskDots.classList.add('ml-moving');currentDots=null;
   if(document.hidden){onVisibility();return;}
   later(()=>{if(document.hidden){onVisibility();return;}phase='show';currentDots=taskDots;surface.replaceChildren(taskDots);const bar=el('div',{class:'ml-exposure','aria-hidden':'true'},[el('span',{style:`animation-duration:${settings.exposure}ms`})]);surface.append(bar);
    later(()=>{if(phase!=='show')return;phase='answer';currentDots=null;surface.replaceChildren(el('p',{class:'ml-instruction'},['Сколько было точек?']));taskStart=performance.now();const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);

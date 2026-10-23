@@ -59,3 +59,26 @@ it('mental feedback identifies a wrong transfer even when the final sum is corre
 it('does not start a new exposure while the page is already in the background',async()=>{
  unmount=mathExercise('glance')(root,ctx());vi.spyOn(document,'hidden','get').mockReturnValue(true);button('Начать').click();await vi.advanceTimersByTimeAsync(10000);expect(root.querySelector('.ml-dot')).toBeNull();expect(root.querySelector('form')).toBeNull();expect(root.textContent).toContain('без штрафа');
 });
+it('keeps moving dots optional, hides them on deadline and replays a still image',async()=>{
+ unmount=mathExercise('glance')(root,ctx());
+ const toggle=[...root.querySelectorAll<HTMLInputElement>('input[type=checkbox]')][0];
+ expect(toggle.checked).toBe(false);toggle.checked=true;toggle.dispatchEvent(new Event('change'));
+ select('Время показа','500');button('Начать').click();await vi.advanceTimersByTimeAsync(600);
+ expect(root.querySelector('.ml-moving .ml-dot')).not.toBeNull();
+ const count=root.querySelectorAll('.ml-dot').length;expect(count).toBeGreaterThan(0);
+ await vi.advanceTimersByTimeAsync(500);expect(root.querySelector('.ml-moving')).toBeNull();answer('0');
+ button('Посмотреть расположение').click();expect(root.querySelector('.ml-moving')).toBeNull();expect(root.querySelectorAll('.ml-dot').length).toBe(count);
+});
+
+it('handles a touch-style zero-detail compatibility click exactly once',()=>{
+ unmount=mathExercise('bridge')(root,ctx());
+ const source=root.querySelector<HTMLButtonElement>('[data-side=right][data-index="0"]')!;
+ source.setPointerCapture=()=>{};source.hasPointerCapture=()=>false;
+ const pointer=(type:string)=>{const e=new MouseEvent(type,{bubbles:true,button:0,clientX:10,clientY:10});Object.defineProperties(e,{isPrimary:{value:true},pointerId:{value:1}});source.dispatchEvent(e);};
+ Object.defineProperty(document,'elementFromPoint',{configurable:true,value:()=>source});
+ pointer('pointerdown');pointer('pointerup');source.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:0}));
+ expect(source.getAttribute('aria-pressed')).toBe('true');
+ root.querySelector<HTMLButtonElement>('[data-side=left][data-index="8"]')!.click();
+ expect(root.querySelector('[data-side=left][data-index="8"] .ml-ball')).not.toBeNull();
+ expect(root.querySelectorAll('.ml-boxes .ml-ball')).toHaveLength(13);
+});

@@ -2,14 +2,14 @@ export const EXERCISES = ['glance', 'builder', 'friends', 'bridge'] as const;
 export type Exercise = typeof EXERCISES[number];
 export interface MathSettings {
   mode: 'learn' | 'train' | 'explore'; count: number; min: number; max: number;
-  exposure: number; layout: 'standard' | 'groups' | 'random';
+  exposure: number; moving: boolean; layout: 'standard' | 'groups' | 'random';
   unknown: 'first' | 'second' | 'random'; level: number; frame: boolean;
   whole: number; part: number; auto: boolean; edges: boolean; numbers: number[]; a: number; b: number;
 }
 export const TITLES: Record<Exercise,string> = {glance:'Мгновенный взгляд',builder:'Конструктор числа',friends:'Друзья десятки',bridge:'Дострой десятку'};
 export function defaults(id:Exercise):MathSettings {
   return {mode:id==='builder'||id==='bridge'?'explore':'learn',count:10,min:id==='builder'?2:1,max:id==='builder'?10:4,
-    exposure:1000,layout:'standard',unknown:'random',level:1,frame:true,whole:8,part:8,auto:false,edges:false,numbers:[1,2,3,4,5,6,7,8,9],a:8,b:5};
+    exposure:1000,moving:false,layout:'standard',unknown:'random',level:1,frame:true,whole:8,part:8,auto:false,edges:false,numbers:[1,2,3,4,5,6,7,8,9],a:8,b:5};
 }
 const integer=(v:unknown,fallback:number,min:number,max:number)=>typeof v==='number'&&Number.isInteger(v)&&v>=min&&v<=max?v:fallback;
 export function sanitize(id:Exercise,raw:unknown):MathSettings {
@@ -18,6 +18,7 @@ export function sanitize(id:Exercise,raw:unknown):MathSettings {
   return {...d,mode:r.mode&&['learn','train','explore'].includes(r.mode)?r.mode:d.mode,
     count:[5,10,20,30].includes(r.count!)?r.count!:d.count,min,max:Math.max(min,integer(r.max,d.max,id==='builder'?2:1,10)),
     exposure:[500,1000,2000,3000,5000].includes(r.exposure!)?r.exposure!:d.exposure,
+    moving:typeof r.moving==='boolean'?r.moving:false,
     layout:r.layout&&['standard','groups','random'].includes(r.layout)?r.layout:d.layout,
     unknown:r.unknown&&['first','second','random'].includes(r.unknown)?r.unknown:d.unknown,
     whole:integer(r.whole,8,2,10),part:Math.min(integer(r.whole,8,2,10),integer(r.part,8,0,10)),level:integer(r.level,1,1,3),frame:typeof r.frame==='boolean'?r.frame:d.frame,auto:typeof r.auto==='boolean'?r.auto:d.auto,

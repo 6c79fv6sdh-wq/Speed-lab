@@ -9,14 +9,14 @@ export function dots(n:number,layout:MathSettings['layout'],rng:Rng=Math.random)
  const {points,frame}=dotLayout(n,layout,rng);
  const area=el('div',{class:`ml-dots ${frame?'ml-dots-frame':''}`,'aria-label':'Точки для запоминания'});
  if(frame)for(let i=0;i<10;i++)area.append(el('span',{class:'ml-dot-cell','aria-hidden':'true',style:`left:${(i%5)*20}%;top:${Math.floor(i/5)*50}%`}));
- for(const p of points)area.append(el('span',{class:'ml-dot','aria-hidden':'true',style:`left:${p.x}%;top:${p.y}%`}));
+ for(const [i,p] of points.entries())area.append(el('span',{class:'ml-dot','aria-hidden':'true',style:`left:${p.x}%;top:${p.y}%;--orbit-duration:${1.5+i*.17}s;--orbit-delay:${-i*.31}s`}));
  return area;
 }
 /** Pointer drag and keyboard/tap selection share the same atomic state transition. */
 export function mountBoxes(host:HTMLElement,state:Boxes,onChange:(next:Boxes)=>void,enabled=true):()=>void {
  host.replaceChildren();let selected:number|null=null;
  let drag:{id:number;from:number;x:number;y:number;button:HTMLElement;moved:boolean}|null=null;
- let ghost:HTMLElement|null=null;let hover:HTMLElement|null=null;let lastPointerUp=-1000;let lastPointerButton:HTMLElement|null=null;
+ let ghost:HTMLElement|null=null;let hover:HTMLElement|null=null;let draggedButton:HTMLElement|null=null;
  const status=el('p',{class:'ml-instruction',role:'status'},['Перенеси шарик из второй коробки в свободную ячейку первой.']);
  const boxes=el('div',{class:'ml-boxes'});
  const targets:HTMLButtonElement[]=[];const sources:HTMLButtonElement[]=[];
@@ -40,7 +40,7 @@ export function mountBoxes(host:HTMLElement,state:Boxes,onChange:(next:Boxes)=>v
  const commit=(from:number,to:number)=>{const next=transfer(state,from,to);if(next!==state)onChange(next);};
  const click=(e:MouseEvent)=>{
   const b=cell(e.target);if(!b||b.disabled)return;
-  if(e.detail!==0&&b===lastPointerButton&&performance.now()-lastPointerUp<500)return;
+  if(b===draggedButton){draggedButton=null;return;}
   const index=Number(b.dataset.index);
   if(b.dataset.side==='right')select(selected===index?null:index);
   else if(selected!==null)commit(selected,index);
@@ -49,7 +49,7 @@ export function mountBoxes(host:HTMLElement,state:Boxes,onChange:(next:Boxes)=>v
  const down=(e:PointerEvent)=>{
   if(drag||!e.isPrimary||e.button!==0)return;
   const b=cell(e.target);if(!b||b.disabled||b.dataset.side!=='right')return;
-  e.preventDefault();b.focus({preventScroll:true});
+  draggedButton=null;b.focus({preventScroll:true});
   drag={id:e.pointerId,from:Number(b.dataset.index),x:e.clientX,y:e.clientY,button:b,moved:false};b.setPointerCapture(e.pointerId);
  };
  const move=(e:PointerEvent)=>{
@@ -64,14 +64,18 @@ export function mountBoxes(host:HTMLElement,state:Boxes,onChange:(next:Boxes)=>v
  };
  const up=(e:PointerEvent)=>{
   if(!drag||drag.id!==e.pointerId)return;
-  const {from,moved,button}=drag;lastPointerUp=performance.now();lastPointerButton=button;
+  const {from,moved,button}=drag;
+  // Pointer-up owns this gesture. Consume its compatibility click regardless
+  // of detail (touch browsers may report zero, just like keyboard clicks).
+  draggedButton=button;
   const target=cell(document.elementFromPoint(e.clientX,e.clientY));
   if(button.hasPointerCapture(e.pointerId))button.releasePointerCapture(e.pointerId);
   clean();
-  if(!moved)select(selected===from?null:from);
-  else if(target&&host.contains(target)&&target.dataset.side==='left'&&!target.disabled)commit(from,Number(target.dataset.index));
+  if(!moved){select(selected===from?null:from);return;}
+  if(target&&host.contains(target)&&target.dataset.side==='left'&&!target.disabled)commit(from,Number(target.dataset.index));
   else{select(null);status.textContent='Шарик вернулся во вторую коробку. Выбери свободную ячейку первой.';}
  };
- host.addEventListener('click',click);host.addEventListener('pointerdown',down);host.addEventListener('pointermove',move);host.addEventListener('pointerup',up);host.addEventListener('pointercancel',clean);host.addEventListener('lostpointercapture',clean);
- return ()=>{clean();host.removeEventListener('click',click);host.removeEventListener('pointerdown',down);host.removeEventListener('pointermove',move);host.removeEventListener('pointerup',up);host.removeEventListener('pointercancel',clean);host.removeEventListener('lostpointercapture',clean);};
+ const key=()=>{draggedButton=null;};
+ host.addEventListener('keydown',key);host.addEventListener('click',click);host.addEventListener('pointerdown',down);host.addEventListener('pointermove',move);host.addEventListener('pointerup',up);host.addEventListener('pointercancel',clean);host.addEventListener('lostpointercapture',clean);
+ return ()=>{clean();host.removeEventListener('keydown',key);host.removeEventListener('click',click);host.removeEventListener('pointerdown',down);host.removeEventListener('pointermove',move);host.removeEventListener('pointerup',up);host.removeEventListener('pointercancel',clean);host.removeEventListener('lostpointercapture',clean);};
 }
