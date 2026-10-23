@@ -2387,3 +2387,15 @@ code {
 @media (prefers-reduced-motion: reduce) {
   .sn-exposure-progress.is-running .sn-time-fill { animation: none; }
 }
+
+/* Separate entrance to MathLab, following all chess sections. */
+.math-portal{flex:0 0 auto;border-left:1px solid var(--border);padding-left:18px;margin-left:14px}
+.math-portal-link{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;min-height:48px;padding:6px 14px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--fg-strong);cursor:pointer;font:inherit;text-align:left}
+.math-portal-brand{font-size:11px;letter-spacing:.08em;color:var(--fg);line-height:1.2}
+.math-portal-title{font-size:14px;line-height:1.4}
+.math-portal-link:hover,.math-portal-link.active{border-color:var(--accent,#2bb58b);background:var(--panel2)}
+.math-portal-link:focus-visible{outline:2px solid var(--accent,#2bb58b);outline-offset:3px}
+@media(max-width:650px){
+ #tabs>.math-portal{margin:0;padding:8px 0;border-left:0;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
+ .math-portal-link{flex-direction:row;align-items:center;gap:12px;min-height:44px;padding:8px 14px}
+}

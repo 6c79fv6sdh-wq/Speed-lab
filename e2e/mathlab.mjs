@@ -19,6 +19,9 @@ try{
   if(process.env.UI_THEME)await page.addInitScript(theme=>localStorage.setItem('chesslab.theme',theme),process.env.UI_THEME);
   await page.goto(base+'#math-builder',{waitUntil:'networkidle'});await page.locator('#profile-name').fill('MathLab test');await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:/Готово, к тренировке/}).click();
   await page.locator('.mathlab[data-exercise=builder]').waitFor();check(true,name+': direct exercise URL survives first-run setup');
+  check(await page.locator('#tabs-primary-scroll .tab-primary').allTextContents().then(labels=>labels.join('|')==='Тренировки|Спарринг|Мои партии|Прогресс'),name+': chess navigation stays grouped in order');
+  check(await page.locator('.math-portal').count()===1,name+': one separate MathLab entrance');
+  check(await page.locator('.math-portal').evaluate(el=>innerWidth<=650?el.parentElement.id==='tabs'&&el===el.parentElement.lastElementChild:el.previousElementSibling?.id==='tabs-primary-scroll'),name+': MathLab follows chess navigation');
   await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===4,name+': four cards through main menu');
   if(name==='desktop')await page.screenshot({path:`${screenshots}/home-desktop.png`,fullPage:true});
   const go=async id=>{await page.goto(base+'#math-'+id);await page.locator('.mathlab[data-exercise="'+id+'"]').waitFor();};

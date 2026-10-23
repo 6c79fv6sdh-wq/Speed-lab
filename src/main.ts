@@ -99,10 +99,9 @@ const MATH_TABS: Tab[] = [
 ];
 const ALL_TABS: Tab[] = [...MATH_TABS, ...TRAINING_TABS, SCRAMBLE_TAB, GAMES_TAB, DATA_TAB, SETTINGS_TAB];
 
-/** Пункты верхнего ряда: группа «Тренировки» + три самостоятельных экрана. */
+/** Шахматные разделы. MathLab — отдельный переход после этой группы. */
 const TOP_ENTRIES: Array<{ id: string; label: string; group: boolean }> = [
   { id: TRAINING_GROUP_ID, label: 'Тренировки', group: true },
-  { id: 'math', label: 'Математика', group: false },
   { id: SCRAMBLE_TAB.id, label: SCRAMBLE_TAB.label, group: false },
   { id: GAMES_TAB.id, label: GAMES_TAB.label, group: false },
   { id: DATA_TAB.id, label: DATA_TAB.label, group: false },
@@ -248,6 +247,17 @@ async function boot(): Promise<void> {
     primaryScroll.append(b);
   }
 
+  // MathLab is a separate product area, outside the scrolling chess tabs.
+  const mathPortal = el('div', { class: 'math-portal' });
+  const mathButton = el('button', {
+    class: 'math-portal-link', type: 'button', 'aria-label': 'Математика',
+  }, [el('span', { class: 'math-portal-brand', 'aria-hidden': 'true' }, ['MathLab']),
+      el('span', { class: 'math-portal-title', 'aria-hidden': 'true' }, ['Математика →'])]);
+  mathButton.addEventListener('click', () => show('math'));
+  topButtons.set('math', mathButton);
+  mathPortal.append(mathButton);
+  primaryRow.append(mathPortal);
+
   for (const t of TRAINING_TABS) {
     const b = el('button', { class: 'tab-secondary', type: 'button' }, [t.label]);
     b.addEventListener('click', () => show(t.id));
@@ -262,6 +272,13 @@ async function boot(): Promise<void> {
   settingsBtn.addEventListener('click', () => show(SETTINGS_TAB.id));
   installQuickThemePicker(settingsBtn);
   primaryRow.append(settingsBtn);
+  const compactNavigation = window.matchMedia('(max-width: 650px)');
+  const placeMathPortal = () => {
+    if (compactNavigation.matches) nav.append(mathPortal);
+    else primaryRow.insertBefore(mathPortal, settingsBtn);
+  };
+  placeMathPortal();
+  compactNavigation.addEventListener('change', placeMathPortal);
 
   window.addEventListener('hashchange', () => {
     const id = location.hash.replace('#', '');
