@@ -3,16 +3,16 @@ import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {join,extname} from 'node:path';
 import assert from 'node:assert/strict';
-const baseline=process.argv.includes('--baseline');const dir='docs/themes/screenshots';await mkdir(dir,{recursive:true});
+const baseline=process.argv.includes('--baseline');const functional=process.argv.includes('--functional');const dir='docs/themes/screenshots';await mkdir(dir,{recursive:true});
 const dist=new URL('../dist/',import.meta.url).pathname;const token=(await readFile(join(dist,'e2e-token.txt'),'utf8')).trim();
 const server=createServer(async(req,res)=>{const path=new URL(req.url,'http://localhost').pathname;const file=path==='/'?'index.html':path.slice(1);if(file.includes('..'))return res.writeHead(400).end();try{res.writeHead(200,{'Content-Type':({'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.webmanifest':'application/manifest+json'})[extname(file)]??'application/octet-stream'}).end(await readFile(join(dist,file)));}catch{res.writeHead(404).end();}});
 await new Promise(r=>server.listen(5715,'127.0.0.1',r));const base='http://127.0.0.1:5715/';
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium'});let checks=0;
 const check=(ok,label)=>{assert.ok(ok,label);checks++;console.log('OK '+label);};
 try{
- for(const width of [390,1440]){
+ for(const width of functional?[]:[390,1440]){
   const context=await browser.newContext({viewport:{width,height:1000},serviceWorkers:'block'});const page=await context.newPage();
-  await page.addInitScript(t=>localStorage.setItem('sciencechess-lab-access',t),token);await page.goto(base,{waitUntil:'networkidle'});await page.locator('#profile-name').fill('Theme test');await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:/Готово, к тренировке/}).click();await page.locator('#tabs .tab-secondary.active').filter({hasText:'Сегодня'}).waitFor();
+  await page.addInitScript(t=>{localStorage.setItem('sciencechess-lab-access',t);localStorage.setItem('chesslab.theme','classic');},token);await page.goto(base,{waitUntil:'networkidle'});await page.locator('#profile-name').fill('Theme test');await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:/Готово, к тренировке/}).click();await page.locator('#tabs .tab-secondary.active').filter({hasText:'Сегодня'}).waitFor();
   for(const route of ['reaction','motorics','math','scramble']){
    await page.goto(base+'#'+route);await page.locator('#view h1').waitFor();if(route==='reaction'){await page.getByRole('button',{name:'Мат в 2',exact:true}).click();await page.getByRole('button',{name:'3 с',exact:true}).click();}
    await page.mouse.move(0,0);await page.waitForTimeout(350);
@@ -26,6 +26,7 @@ try{
   const ctx=await browser.newContext({viewport:{width:390,height:1000},hasTouch:true,serviceWorkers:'block'});const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(t=>localStorage.setItem('sciencechess-lab-access',t),token);
   await page.goto(base);await page.locator('#profile-name').fill('Theme test');await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:/Готово, к тренировке/}).click();await page.locator('#tabs .tab-secondary.active').filter({hasText:'Сегодня'}).waitFor();
+  check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='brilliant','new default is Brilliant without a saved choice');
   await page.goto(base+'#calibration');await page.getByRole('button',{name:'Brilliant Dark',exact:true}).click();
   check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='brilliant','settings selects Brilliant without reload');
   await page.addInitScript(()=>{new PerformanceObserver(list=>{if(list.getEntries().some(e=>e.name==='first-contentful-paint'))window.themeAtFirstPaint=document.documentElement.dataset.uiTheme;}).observe({type:'paint',buffered:true});});
@@ -59,8 +60,8 @@ try{
   check(await page.getByRole('button',{name:'Старт',exact:true}).isDisabled(),'switch keeps active session');
   await page.locator('.hl-board.pieces-hidden').waitFor({timeout:2000});check(true,'exposure timer survives theme changes');
   await page.getByText(/Время вышло\. Правильно:/).waitFor({timeout:4500});check(Date.now()-startTime<4500,'answer deadline is not reset');await page.getByRole('button',{name:'Прервать',exact:true}).click();
-  await go('calibration');await page.getByRole('button',{name:'Classic Dark',exact:true}).click();check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='classic','settings returns to Classic');
-  await page.evaluate(()=>localStorage.setItem('chesslab.theme','unsupported'));await page.reload();check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='classic','invalid persisted value falls back');
+  await go('calibration');await page.getByRole('button',{name:'Classic Dark',exact:true}).click();check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='classic','settings returns to Classic');await page.reload();check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='classic','explicit Classic choice survives reload');
+  await page.evaluate(()=>localStorage.setItem('chesslab.theme','unsupported'));await page.reload();check(await page.evaluate(()=>document.documentElement.dataset.uiTheme)==='brilliant','invalid persisted value falls back to Brilliant');
   const gear=page.getByRole('button',{name:'Настройки',exact:true});await gear.focus();await gear.press('ArrowDown');await page.getByRole('dialog',{name:'Тема интерфейса'}).waitFor();await page.keyboard.press('Escape');check(await page.getByRole('dialog').count()===0,'keyboard picker opens and closes without navigation');
   await quick('Brilliant Dark');check(await page.getByRole('button',{name:'Brilliant Dark',exact:true}).getAttribute('aria-pressed')==='true','settings picker stays synchronized with quick picker');
   await go('reaction');await page.getByRole('button',{name:'Snapshot',exact:true}).click();const square=page.locator('.sn-sq').first();await square.focus();await page.keyboard.press('Tab');await page.keyboard.press('Shift+Tab');const focus=()=>square.evaluate(e=>{const s=getComputedStyle(e);return [s.outlineColor,s.outlineWidth,s.backgroundColor];});const brilliantFocus=await focus();await apply('classic');check(JSON.stringify(brilliantFocus)===JSON.stringify(await focus()),'Snapshot board focus and square colors preserved');await apply('brilliant');

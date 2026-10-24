@@ -9,7 +9,7 @@ export function availableUiThemes(): readonly UiTheme[] {
     .filter(theme => theme.id === 'classic' || Object.hasOwn(themeFiles, `./themes/${theme.id}.css`));
 }
 export function resolveUiTheme(value: unknown, available: readonly UiTheme[] = availableUiThemes()): string {
-  return available.some(theme => theme.id === value) ? String(value) : 'classic';
+  return available.some(theme => theme.id === value) ? String(value) : available[0]?.id ?? 'classic';
 }
 export function currentUiTheme(): string {
   return resolveUiTheme(document.documentElement.getAttribute('data-ui-theme'));
