@@ -2,12 +2,12 @@
 (function () {
   'use strict';
   var themes = Object.freeze([
-    { id: 'classic', label: 'Classic Dark' },
-    { id: 'brilliant', label: 'Brilliant Dark' }
+    { id: 'brilliant', label: 'Brilliant Dark' },
+    { id: 'classic', label: 'Classic Dark' }
   ]);
   var key = 'chesslab.theme';
   function resolve(value) {
-    return themes.some(function (theme) { return theme.id === value; }) ? value : 'classic';
+    return themes.some(function (theme) { return theme.id === value; }) ? value : themes[0].id;
   }
   function apply(value, persist) {
     var theme = resolve(value);
