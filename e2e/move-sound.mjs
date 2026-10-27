@@ -24,13 +24,15 @@ try {
   await tapSquare('e2');await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>sounds),1,'piece selection ticks');
   await tapSquare('e4');await page.waitForFunction(()=>moves===1);assert.equal(await page.evaluate(()=>sounds),2,'one additional sound per real move');
   await page.evaluate(()=>{paint();paint();});assert.equal(await page.evaluate(()=>sounds),2,'redraw silent');
+  await page.evaluate(async()=>{(await import('/src/core/move-sound.ts')).setMoveSoundEnabled(false);});
+  await tapSquare('e7');await tapSquare('e5');await page.waitForFunction(()=>moves===2);assert.equal(await page.evaluate(()=>sounds),2,'muted move silent');
+  await page.evaluate(async()=>{(await import('/src/core/move-sound.ts')).setMoveSoundEnabled(true);});
   await page.evaluate(()=>{const controls=document.createElement('div');controls.innerHTML='<button id="choice">Выбрать</button><label><input id="check" type="checkbox">Подсказка</label><input id="range" type="range" min="0" max="5" step="1" value="0"><button id="disabled" disabled>Недоступно</button>';document.body.prepend(controls);});
   await page.waitForTimeout(60);await page.locator('#choice').click();assert.equal(await page.evaluate(()=>sounds),3,'button ticks once');
   await page.waitForTimeout(60);await page.locator('#check').check();assert.equal(await page.evaluate(()=>sounds),4,'checkbox ticks once');
   await page.evaluate(()=>document.querySelector('#choice').click());assert.equal(await page.evaluate(()=>sounds),4,'programmatic clicks silent');
   await page.waitForTimeout(60);await page.locator('#range').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.evaluate(()=>sounds),5,'range step ticks once');
   await page.evaluate(async()=>{(await import('/src/core/move-sound.ts')).setMoveSoundEnabled(false);});
-  await tapSquare('e7');await tapSquare('e5');await page.waitForFunction(()=>moves===2);assert.equal(await page.evaluate(()=>sounds),5,'muted move silent');
   await page.reload();assert.equal(await page.evaluate(async()=>(await import('/src/core/move-sound.ts')).moveSoundEnabled()),false,'mute persisted');
   console.log(`Sound: ${touch?'touch':'mouse'} — gesture unlock, one click, selection and controls, silent redraw and persisted mute passed`);await context.close();
  }
