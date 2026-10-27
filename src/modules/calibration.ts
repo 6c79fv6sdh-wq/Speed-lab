@@ -1,3 +1,4 @@
+import { moveSoundEnabled, setMoveSoundEnabled, playMoveSound } from '../core/move-sound';
 import { availableUiThemes, currentUiTheme, setUiTheme } from '../theme/manager';
 import { mountDataSettings } from './settings-data';
 import { reportStorageError } from '../core/storage-error';
@@ -180,6 +181,10 @@ function mountCalibrationView(
     save();
   });
 
+  const soundCb = el('input', { type: 'checkbox', id: 'move-sound-toggle', 'aria-label': 'Звук хода' });
+  soundCb.checked = moveSoundEnabled();
+  soundCb.addEventListener('change', () => { setMoveSoundEnabled(soundCb.checked); if (soundCb.checked) playMoveSound(); });
+
   const profileSeg = segmented<DeviceProfile>(
     (Object.keys(DEVICE_PROFILE_LABELS) as DeviceProfile[]).map((k) => ({
       value: k,
@@ -306,6 +311,7 @@ function mountCalibrationView(
       sizeNote,
       el('div', { class: 'row' }, [el('label', {}, ['Способ ввода']), inputSeg.root]),
       el('div', { class: 'row' }, [el('label', {}, ['Координаты по краям']), coordsCb]),
+      el('div', { class: 'row' }, [el('label', { for: 'move-sound-toggle' }, ['Звук хода']), soundCb]),
       disclosure('Дополнительные настройки', [
         el('div', { class: 'row' }, [el('label', {}, ['Профиль устройства']), profileSeg.root]),
         el('div', { class: 'col' }, [el('label', {}, ['Метка настроек указателя']), pointerInput]),

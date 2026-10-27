@@ -1,3 +1,4 @@
+import { initializeMoveSound, playMoveSound } from '../core/move-sound';
 import { Chessground } from 'chessground';
 import { installTouchInput } from './touch';
 import type { Api } from 'chessground/api';
@@ -232,6 +233,7 @@ export class Board {
   private readonly touchInput: ReturnType<typeof installTouchInput>;
 
   constructor(container: HTMLElement, opts: BoardOptions) {
+    initializeMoveSound();
     this.opts = opts;
     this.host = container;
     container.innerHTML = '';
@@ -283,7 +285,7 @@ export class Board {
         showDests: true,
         rookCastle: true,
         events: {
-          after: (orig, dest) => this.opts.onMove?.(orig, dest),
+          after: (orig, dest) => { playMoveSound(); this.opts.onMove?.(orig, dest); },
         },
       },
       premovable: {
