@@ -1,4 +1,4 @@
-import { initializeMoveSound, playMoveSound } from '../core/move-sound';
+import { initializeMoveSound, playMoveSound, playInteractionSound } from '../core/move-sound';
 import { Chessground } from 'chessground';
 import { installTouchInput } from './touch';
 import type { Api } from 'chessground/api';
@@ -315,7 +315,14 @@ export class Board {
         brushes: DRAW_BRUSHES,
       },
       events: {
-        select: (key) => this.opts.onSelect?.(key),
+        select: (key) => {
+          const state = this.api.state;
+          const piece = state.pieces.get(key);
+          // Destination callbacks run after the move; only the selected source ticks.
+          if (!state.viewOnly && state.selected === key && piece &&
+              (state.movable.color === 'both' || state.movable.color === piece.color)) playInteractionSound();
+          this.opts.onSelect?.(key);
+        },
       },
     };
   }

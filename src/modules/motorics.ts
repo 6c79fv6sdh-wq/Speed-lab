@@ -1,3 +1,4 @@
+import { playInteractionSound } from '../core/move-sound';
 import type { Key } from 'chessground/types';
 import type { AppContext, Unmount } from '../main';
 import { MAX_FIRE_PARTICLES, traceFireAnchors } from './motorics-fire';
@@ -360,6 +361,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     const rect = boardRect(board.wrap);
     const key = keyFromPoint(e.clientX, e.clientY, rect, 'white');
     if (!key) return;
+    playInteractionSound();
 
     if (phase === 'to-source') {
       if (key !== source) {
@@ -700,6 +702,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     void e;
     const t = performance.now();
     if (sigPhase === 'waiting') {
+      playInteractionSound('answer');
       // Клик до появления стимула — фальстарт. Расписание не трогаем:
       // уже подготовленный следующий стимул выходит по плану.
       sigRecordTrial(signalFalseStart(sigTrialIndex));
@@ -707,6 +710,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       return;
     }
     if (sigPhase !== 'active' || sigResolved || !sigCurrent) return;
+    playInteractionSound('answer');
     sigResolved = true;
     sigClearTimer();
     sigRecordTrial(classifyReaction(sigTrialIndex, sigCurrent.color, sigShownAt, t));
@@ -1080,6 +1084,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     if (key !== routeCurrent.from) return;
     routeArmed = true;
     routePendingDownAt = performance.now();
+    playInteractionSound();
     routePendingPointerType = e.pointerType || '';
   }
 
@@ -1093,6 +1098,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     // «взял/передумал». Вооружение при этом остаётся: клик по цели
     // следующим тапом всё ещё должен сработать.
     if (key === null || key === routeCurrent.from) return;
+    playInteractionSound('answer');
     routeArmed = false;
     const pointerType = routePendingPointerType;
     if (key === routeCurrent.target) routeHandleCorrectDrop(t, pointerType);

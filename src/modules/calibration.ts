@@ -181,7 +181,7 @@ function mountCalibrationView(
     save();
   });
 
-  const soundCb = el('input', { type: 'checkbox', id: 'move-sound-toggle', 'aria-label': 'Звук хода' });
+  const soundCb = el('input', { type: 'checkbox', id: 'move-sound-toggle', 'aria-label': 'Звуки действий' });
   soundCb.checked = moveSoundEnabled();
   soundCb.addEventListener('change', () => { setMoveSoundEnabled(soundCb.checked); if (soundCb.checked) playMoveSound(); });
 
@@ -311,7 +311,7 @@ function mountCalibrationView(
       sizeNote,
       el('div', { class: 'row' }, [el('label', {}, ['Способ ввода']), inputSeg.root]),
       el('div', { class: 'row' }, [el('label', {}, ['Координаты по краям']), coordsCb]),
-      el('div', { class: 'row' }, [el('label', { for: 'move-sound-toggle' }, ['Звук хода']), soundCb]),
+      el('div', { class: 'row' }, [el('label', { for: 'move-sound-toggle' }, ['Звуки действий']), soundCb]),
       disclosure('Дополнительные настройки', [
         el('div', { class: 'row' }, [el('label', {}, ['Профиль устройства']), profileSeg.root]),
         el('div', { class: 'col' }, [el('label', {}, ['Метка настроек указателя']), pointerInput]),

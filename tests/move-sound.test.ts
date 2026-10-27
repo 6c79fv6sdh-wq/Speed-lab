@@ -28,3 +28,15 @@ it('unlocks on a gesture, reuses one buffer and never queues suspended or muted 
  m.setMoveSoundEnabled(false);m.playMoveSound();expect(start).toHaveBeenCalledTimes(2);
  m.setMoveSoundEnabled(true);vi.spyOn(document,'hidden','get').mockReturnValue(true);m.playMoveSound();expect(start).toHaveBeenCalledTimes(2);
 });
+it('coalesces duplicate cues and cancels deferred board ticks on swipe or pointer cancellation',async()=>{
+ const start=vi.fn();
+ vi.stubGlobal('AudioContext',vi.fn(function(){return {state:'running',sampleRate:48000,destination:{},createBuffer:(_c:number,n:number)=>({getChannelData:()=>new Float32Array(n)}),createBufferSource:()=>({connect:vi.fn(),disconnect:vi.fn(),start,stop:vi.fn()})};}));
+ let now=1000;vi.spyOn(performance,'now').mockImplementation(()=>now);
+ const m=await import('../src/core/move-sound');m.initializeMoveSound();
+ const pointer=(type:string,x=10)=>{const e=new MouseEvent(type,{bubbles:true,button:0,clientX:x,clientY:10});Object.defineProperties(e,{isPrimary:{value:true},pointerId:{value:7}});document.dispatchEvent(e);};
+ pointer('pointerdown');m.playInteractionSound();expect(start).not.toHaveBeenCalled();pointer('pointerup');expect(start).toHaveBeenCalledTimes(1);
+ m.playInteractionSound();expect(start).toHaveBeenCalledTimes(1);
+ now+=100;pointer('pointerdown');m.playInteractionSound();pointer('pointerup',80);expect(start).toHaveBeenCalledTimes(1);
+ pointer('pointerdown');m.playInteractionSound();pointer('pointercancel');pointer('pointerup');expect(start).toHaveBeenCalledTimes(1);
+ now+=100;m.playInteractionSound('answer');expect(start).toHaveBeenCalledTimes(2);
+});

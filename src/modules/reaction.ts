@@ -1,3 +1,4 @@
+import { playInteractionSound } from '../core/move-sound';
 import { MATE_TWO_PUZZLES, type MateTwoPuzzle } from '../data/puzzles-mate-two';
 import type { AppContext, Unmount } from '../main';
 import { Board } from '../board/board';
@@ -539,6 +540,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     if (!key) return;
     accepting = false;
     const t = performance.now();
+    playInteractionSound('answer');
     const correct = key === deltaAnswer(delta);
     board.setPiecesHidden(false);
     const after = posFromFen(delta.afterFen);
@@ -798,6 +800,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
 
   function onKsChoose(index: number, pointerType: string, atMs: number): void {
     if (!ksSession || !ksArmed) return;
+    playInteractionSound('answer');
     ksArmed = false;
     const round = ksSession.rounds[ksRoundPos];
     const correct = index === round.correctIndex;

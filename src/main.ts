@@ -1,7 +1,9 @@
+import { initializeMoveSound } from './core/move-sound';
 import './styles.css';
 import { initializeUiTheme } from './theme/manager';
 import { installQuickThemePicker } from './theme/picker';
 initializeUiTheme();
+initializeMoveSound();
 import {
   hasSavedCalibration,
   loadCalibration,

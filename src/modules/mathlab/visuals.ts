@@ -1,3 +1,4 @@
+import { playInteractionSound } from '../../core/move-sound';
 import {el} from '../../core/ui';
 import {dotLayout,occupied,transfer,type Boxes,type MathSettings,type Rng} from './logic';
 export function tenFrame(n:number,second=0):HTMLElement {
@@ -37,7 +38,7 @@ export function mountBoxes(host:HTMLElement,state:Boxes,onChange:(next:Boxes)=>v
  const select=(index:number|null)=>{selected=index;sources.forEach((b,i)=>{b.classList.toggle('ml-selected',i===index);b.setAttribute('aria-pressed',String(i===index));});status.textContent=index===null?'Выбери шарик во второй коробке.':'Теперь выбери свободную ячейку первой коробки.';};
  const cell=(target:EventTarget|null)=>target instanceof Element?target.closest<HTMLButtonElement>('button[data-side]'):null;
  const clean=()=>{ghost?.remove();ghost=null;hover?.classList.remove('ml-drop-target');hover=null;drag=null;};
- const commit=(from:number,to:number)=>{const next=transfer(state,from,to);if(next!==state)onChange(next);};
+ const commit=(from:number,to:number)=>{const next=transfer(state,from,to);if(next!==state){playInteractionSound();onChange(next);}};
  const click=(e:MouseEvent)=>{
   const b=cell(e.target);if(!b||b.disabled)return;
   if(b===draggedButton){draggedButton=null;return;}

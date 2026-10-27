@@ -21,12 +21,17 @@ try {
   });
   const tapSquare=async square=>{const b=await page.locator('cg-board').boundingBox();const x=b.x+(square.charCodeAt(0)-97+.5)*b.width/8,y=b.y+(8-Number(square[1])+.5)*b.height/8;if(touch)await page.touchscreen.tap(x,y);else await page.mouse.click(x,y);};
   assert.equal(await page.evaluate(()=>sounds),0,'initial position silent');
-  await tapSquare('e2');await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>sounds),0,'selection silent');
-  await tapSquare('e4');await page.waitForFunction(()=>moves===1);assert.equal(await page.evaluate(()=>sounds),1,'one sound per real move');
-  await page.evaluate(()=>{paint();paint();});assert.equal(await page.evaluate(()=>sounds),1,'redraw silent');
+  await tapSquare('e2');await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>sounds),1,'piece selection ticks');
+  await tapSquare('e4');await page.waitForFunction(()=>moves===1);assert.equal(await page.evaluate(()=>sounds),2,'one additional sound per real move');
+  await page.evaluate(()=>{paint();paint();});assert.equal(await page.evaluate(()=>sounds),2,'redraw silent');
+  await page.evaluate(()=>{const controls=document.createElement('div');controls.innerHTML='<button id="choice">Выбрать</button><label><input id="check" type="checkbox">Подсказка</label><input id="range" type="range" min="0" max="5" step="1" value="0"><button id="disabled" disabled>Недоступно</button>';document.body.prepend(controls);});
+  await page.waitForTimeout(60);await page.locator('#choice').click();assert.equal(await page.evaluate(()=>sounds),3,'button ticks once');
+  await page.waitForTimeout(60);await page.locator('#check').check();assert.equal(await page.evaluate(()=>sounds),4,'checkbox ticks once');
+  await page.evaluate(()=>document.querySelector('#choice').click());assert.equal(await page.evaluate(()=>sounds),4,'programmatic clicks silent');
+  await page.waitForTimeout(60);await page.locator('#range').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.evaluate(()=>sounds),5,'range step ticks once');
   await page.evaluate(async()=>{(await import('/src/core/move-sound.ts')).setMoveSoundEnabled(false);});
-  await tapSquare('e7');await tapSquare('e5');await page.waitForFunction(()=>moves===2);assert.equal(await page.evaluate(()=>sounds),1,'muted move silent');
+  await tapSquare('e7');await tapSquare('e5');await page.waitForFunction(()=>moves===2);assert.equal(await page.evaluate(()=>sounds),5,'muted move silent');
   await page.reload();assert.equal(await page.evaluate(async()=>(await import('/src/core/move-sound.ts')).moveSoundEnabled()),false,'mute persisted');
-  console.log(`Sound: ${touch?'touch':'mouse'} — gesture unlock, one click, silent selection/redraw and persisted mute passed`);await context.close();
+  console.log(`Sound: ${touch?'touch':'mouse'} — gesture unlock, one click, selection and controls, silent redraw and persisted mute passed`);await context.close();
  }
 }finally{await browser?.close();server.kill('SIGTERM');}
