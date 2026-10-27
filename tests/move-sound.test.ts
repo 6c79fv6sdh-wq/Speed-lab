@@ -5,7 +5,7 @@ it('produces a short bounded click with silent endpoints at common sample rates'
  const {moveClickSamples}=await import('../src/core/move-sound');
  for(const rate of [22050,44100,48000]){
   const data=moveClickSamples(rate);expect(data.length).toBe(Math.ceil(rate*.075));
-  expect(data[0]).toBe(0);expect(Math.abs(data.at(-1)!)).toBe(0);
+  expect(Math.abs(data[0])).toBe(0);expect(Math.abs(data.at(-1)!)).toBe(0);
   expect(Math.max(...data.map(Math.abs))).toBeLessThan(.4);
   expect(data.some(v=>Math.abs(v)>.1)).toBe(true);
  }
