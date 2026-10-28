@@ -95,3 +95,19 @@ it.each([true,false])('keeps keypad answers usable without opening the touch key
  field.focus();field.value='0';root.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));
  expect(root.textContent).toContain('Правильный ответ');
 });
+
+it('lets children count signs with buttons, marks and feedback without an editable field or timer',async()=>{
+ const context=ctx();unmount=mathExercise('signs')(root,context);select('Заданий в серии','5');button('Начать').click();
+ const count=()=>[root.querySelectorAll('.ml-sign-plus').length,root.querySelectorAll('.ml-sign-minus').length];
+ const choose=(i:number,n:number)=>[...root.querySelectorAll('.ml-sign-answer')[i].querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent===String(n))!.click();
+ expect(root.querySelector('input')).toBeNull();expect(button('Проверить').disabled).toBe(true);
+ const first=count();expect(first[0]+first[1]).toBeLessThanOrEqual(10);
+ const tile=root.querySelector<HTMLButtonElement>('.ml-sign-tile')!;tile.click();expect(tile.getAttribute('aria-pressed')).toBe('true');tile.click();expect(tile.getAttribute('aria-pressed')).toBe('false');
+ await vi.advanceTimersByTimeAsync(120000);expect(count()).toEqual(first);
+ choose(0,0);expect(button('Проверить').disabled).toBe(true);choose(1,first[1]);button('Проверить').click();
+ expect(root.querySelectorAll('.ml-sign-wrong')).toHaveLength(1);expect(root.querySelectorAll('.ml-sign-correct')).toHaveLength(1);expect(root.textContent).toContain(`Плюсов: ${first[0]}`);
+ button('Попробовать ещё раз').click();choose(0,first[0]);choose(1,first[1]);button('Проверить').click();button('Далее').click();
+ for(let i=0;i<4;i++){const n=count();choose(0,n[0]);choose(1,n[1]);button('Проверить').click();button(i===3?'Результат':'Далее').click();}
+ expect(root.textContent).toContain('4 из 5');expect(root.textContent).toContain('80%');
+ expect(localStorage.getItem(`sciencechess-mathlab:v1:${context.profile.id}:results`)).toContain('"exercise":"signs"');
+});

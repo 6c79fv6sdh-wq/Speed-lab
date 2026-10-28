@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {defaults,sanitize,split,complement,generate,dotLayout,createBoxes,transfer,undo,occupied,validBridge} from '../src/modules/mathlab/logic';
+import {defaults,sanitize,split,complement,generate,signLayout,dotLayout,createBoxes,transfer,undo,occupied,validBridge} from '../src/modules/mathlab/logic';
 import {MathSeries} from '../src/modules/mathlab/engine';
 import {mathStorage} from '../src/modules/mathlab/storage';
 const rng=(seed:number)=>()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
@@ -42,4 +42,14 @@ describe('MathLab mathematical invariants',()=>{
   expect(sanitize('builder',{min:20,max:-1,count:17,whole:5,part:9}).part).toBe(5);
   expect(sanitize('friends',{numbers:[]}).numbers).toHaveLength(9);
  });
+});
+
+it('generates both kinds of signs with at most ten symbols and deterministic shuffled slots',()=>{
+ const random=rng(47),same=rng(47);const settings=defaults('signs');
+ for(let i=0;i<500;i++){
+  const task=generate('signs',settings,random);expect(task).toEqual(generate('signs',settings,same));
+  expect(task.a).toBeGreaterThan(0);expect(task.b).toBeGreaterThan(0);expect(task.a+task.b).toBe(task.whole);expect(task.whole).toBeLessThanOrEqual(10);
+  const slots=signLayout(task.a,task.b,rng(i));expect(slots).toHaveLength(12);expect(slots.filter(s=>s==='+')).toHaveLength(task.a);expect(slots.filter(s=>s==='−')).toHaveLength(task.b);expect(slots).toEqual(signLayout(task.a,task.b,rng(i)));
+ }
+ for(const pair of [[-1,2],[6,5],[0,0],[1.5,2]])expect(()=>signLayout(pair[0],pair[1])).toThrow();
 });

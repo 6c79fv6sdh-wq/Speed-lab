@@ -97,7 +97,7 @@ const SETTINGS_TAB: Tab = { id: 'calibration', label: 'Настройки', moun
 
 const MATH_TABS: Tab[] = [
   { id: 'math', label: 'Математика', mount: mountMathLab },
-  ...(['glance', 'builder', 'friends', 'bridge'] as const).map(id => ({ id: `math-${id}`, label: 'Математика', mount: mathExercise(id) })),
+  ...(['glance', 'builder', 'friends', 'bridge', 'signs'] as const).map(id => ({ id: `math-${id}`, label: 'Математика', mount: mathExercise(id) })),
 ];
 const ALL_TABS: Tab[] = [...MATH_TABS, ...TRAINING_TABS, SCRAMBLE_TAB, GAMES_TAB, DATA_TAB, SETTINGS_TAB];
 

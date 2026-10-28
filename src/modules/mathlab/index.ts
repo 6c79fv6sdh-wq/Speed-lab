@@ -1,13 +1,13 @@
 import type {AppContext,MountFn,Unmount} from '../../main';
 import {el,button} from '../../core/ui';
-import {defaults,generate,split,validBridge,createBoxes,occupied,transfer,undo,TITLES,EXERCISES,type Exercise,type MathSettings,type Task,type Boxes} from './logic';
+import {defaults,generate,signLayout,split,validBridge,createBoxes,occupied,transfer,undo,TITLES,EXERCISES,type Exercise,type MathSettings,type Task,type Boxes} from './logic';
 import {MathSeries,type MathResult} from './engine';
 import {mathStorage} from './storage';
 import {dots,tenFrame,mountBoxes} from './visuals';
 import './styles.css';
 const route=(id:Exercise)=>`#math-${id}`;
-const descriptions:Record<Exercise,string>={glance:'Запомни точки и назови их количество.',builder:'Раздели число на две части и найди неизвестную.',friends:'Найди пару чисел, которые вместе дают десять.',bridge:'Переложи шарики, собери десятку и найди сумму.'};
-const symbols:Record<Exercise,string>={glance:'•••',builder:'3 | 5',friends:'? + 7',bridge:'10 + ?'};
+const descriptions:Record<Exercise,string>={glance:'Запомни точки и назови их количество.',builder:'Раздели число на две части и найди неизвестную.',friends:'Найди пару чисел, которые вместе дают десять.',bridge:'Переложи шарики, собери десятку и найди сумму.',signs:'Посчитай отдельно плюсы и минусы. Всего не больше десяти знаков.'};
+const symbols:Record<Exercise,string>={glance:'•••',builder:'3 | 5',friends:'? + 7',bridge:'10 + ?',signs:'+ −'};
 function stat(label:string,value:string):HTMLElement{return el('div',{class:'ml-stat'},[el('span',{},[label]),el('strong',{},[value])]);}
 function history(host:HTMLElement,results:MathResult[]):void {
  host.replaceChildren();if(!results.length){host.append(el('p',{class:'ml-muted'},['Завершённые тренировки появятся здесь.']));return;}
@@ -27,7 +27,7 @@ export function mathExercise(id:Exercise):MountFn{return(root,ctx)=>mountExercis
 function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  const store=mathStorage(ctx.profile.id);let settings=store.settings(id);
  // Exploration is meaningful only in the two manipulatives.
- if((id==='glance'||id==='friends')&&settings.mode==='explore')settings.mode='learn';
+ if((id==='glance'||id==='friends'||id==='signs')&&settings.mode==='explore')settings.mode='learn';
  const page=el('div',{class:'mathlab','data-exercise':id});root.append(page);
  page.append(el('a',{href:'#math',class:'ml-back'},['← Математика']),el('h1',{},[TITLES[id]]));
  const settingsDetails=el('details',{class:'ml-panel ml-settings',open:''},[el('summary',{},['Настройки'])]);
@@ -117,6 +117,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   if(series.complete){finish();return;}
   task=generate(id,settings,Math.random,task??undefined);series.begin();phase='answer';taskStart=performance.now();
   progress.textContent=`Задание ${series.answers.length+1} из ${settings.count}`;
+  if(id==='signs'){drawSigns();return;}
   if(id==='glance'){drawGlance();return;}
   if(id==='builder')drawMissing();
   if(id==='friends')drawFriends();
@@ -164,14 +165,14 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  }
  function retry(){
   if(!task)return;clear();reviewing=true;feedback.replaceChildren();phase='answer';taskStart=performance.now();
-  if(id==='glance')drawGlance();else if(id==='builder')drawMissing();else if(id==='friends')drawFriends();else{boxes=createBoxes(task.a,task.b);drawBridge();}
+  if(id==='glance')drawGlance();else if(id==='builder')drawMissing();else if(id==='friends')drawFriends();else if(id==='signs')drawSigns();else{boxes=createBoxes(task.a,task.b);drawBridge();}
  }
  function finish(){
   clear();if(!series)return;const result=series.finish();series=null;phase='done';
   if(!store.saveResult(result))savedNotice.textContent='Результат доступен в этой вкладке. Постоянное сохранение сейчас недоступно.';
   fields.disabled=false;stop.hidden=true;restart.hidden=true;start.hidden=false;start.textContent='Новая серия';progress.textContent='Тренировка завершена';feedback.replaceChildren();
   surface.replaceChildren(el('div',{class:'ml-stats'},[stat('Верно',`${result.correct} из ${result.answers.length}`),stat('Точность',`${Math.round(result.correct/result.answers.length*100)}%`),stat('Ошибок',String(result.errors)),stat('С подсказкой',String(result.hints))]));
-  const wrong=result.answers.filter(a=>!a.correct);if(wrong.length){const values=[...new Set(wrong.map(a=>id==='friends'?`${a.task.a} + ${a.task.b}`:id==='bridge'?`${a.task.a} + ${a.task.b}`:String(a.task.whole)))];surface.append(el('p',{},[`Можно повторить: ${values.join(', ')}.`]));}
+  const wrong=result.answers.filter(a=>!a.correct);if(wrong.length){const values=[...new Set(wrong.map(a=>id==='friends'?`${a.task.a} + ${a.task.b}`:id==='bridge'?`${a.task.a} + ${a.task.b}`:id==='signs'?`Плюсы ${a.task.a}, минусы ${a.task.b}`:String(a.task.whole)))];surface.append(el('p',{},[`Можно повторить: ${values.join(', ')}.`]));}
   refreshHistory();
  }
  function builderVisual(whole:number,a:number,flipped=false):HTMLElement {
@@ -187,6 +188,38 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   const changeWhole=(value:number)=>{whole=Math.max(2,Math.min(10,Number.isInteger(value)?value:2));wholeInput.value=String(whole);part=Math.min(part,whole);update();};
   wholeInput.addEventListener('change',()=>changeWhole(Number(wholeInput.value)));slider.addEventListener('input',()=>{part=Number(slider.value);update();});
   surface.append(el('div',{class:'ml-whole-picker'},[button('−',()=>changeWhole(whole-1)),el('label',{},['Число ',wholeInput]),button('+',()=>changeWhole(whole+1))]),eq,visual,el('p',{class:'ml-legend'},['Передвигай разделитель или нажимай на шкалу']),rail,el('div',{class:'ml-legend'},['● Первая группа · ◉ Вторая группа']),button('Поменять местами',()=>{part=whole-part;flipped=!flipped;update();}));update();
+ }
+ function drawSigns(){
+  if(!task)return;
+  surface.replaceChildren(el('p',{class:'ml-instruction'},['Сколько здесь плюсов и сколько минусов? Знаки можно отмечать, чтобы не сбиться.']));
+  const board=el('div',{class:'ml-sign-board',role:'group','aria-label':'Поле со знаками'});
+  const symbols=signLayout(task.a,task.b);
+  for(const symbol of symbols){
+   if(!symbol){board.append(el('span',{'aria-hidden':'true'}));continue;}
+   const tile=el('button',{type:'button',class:`ml-sign-tile ${symbol==='+'?'ml-sign-plus':'ml-sign-minus'}`,'aria-label':symbol==='+'?'Плюс':'Минус','aria-pressed':'false'},[el('span',{'aria-hidden':'true'},[symbol])]);
+   tile.addEventListener('click',()=>{const marked=tile.getAttribute('aria-pressed')!=='true';tile.setAttribute('aria-pressed',String(marked));});board.append(tile);
+  }
+  const form=el('form',{class:'ml-sign-form'});const answers:(number|null)[]=[null,null];const outputs:HTMLElement[]=[];const groups:HTMLElement[]=[];
+  const check=el('button',{type:'submit',class:'btn ml-primary'},['Проверить']);check.disabled=true;
+  for(const [index,title] of ['Плюсы','Минусы'].entries()){
+   const output=el('output',{'aria-label':`Количество: ${title.toLowerCase()}`,'aria-live':'polite'},['—']);outputs.push(output);
+   const group=el('div',{class:'ml-sign-answer',role:'group','aria-label':`Ответ: ${title.toLowerCase()}`},[el('h3',{},[title]),output]);
+   const keys=el('div',{class:'ml-sign-keys'});
+   for(let value=0;value<=10;value++){
+    const key=el('button',{type:'button',class:'btn','aria-pressed':'false'},[String(value)]);
+    key.addEventListener('click',()=>{if(phase!=='answer')return;answers[index]=value;output.textContent=String(value);keys.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===key)));check.disabled=answers.some(v=>v===null);});keys.append(key);
+   }
+   group.append(keys);groups.push(group);form.append(group);
+  }
+  form.append(check);surface.append(board,form);
+  form.addEventListener('submit',event=>{
+   event.preventDefault();if(phase!=='answer'||answers.some(v=>v===null)||!task)return;
+   const expected=[task.a,task.b];const correct=answers.every((v,i)=>v===expected[i]);
+   submit(correct,`${answers[0]}, ${answers[1]}`);
+   feedback.querySelector('p')!.textContent=correct?'Верно!':`Плюсов: ${task.a}. Минусов: ${task.b}.`;
+   groups.forEach((group,i)=>{group.classList.add(answers[i]===expected[i]?'ml-sign-correct':'ml-sign-wrong');group.append(el('p',{},[answers[i]===expected[i]?'✓ Верно':`× Ответ: ${expected[i]}. У тебя: ${answers[i]}.`]));});
+   const counters={'+':0,'−':0};board.querySelectorAll<HTMLButtonElement>('button').forEach(tile=>{const symbol=tile.classList.contains('ml-sign-plus')?'+':'−';counters[symbol]++;tile.append(el('small',{'aria-hidden':'true'},[String(counters[symbol])]));});
+  });
  }
  function drawMissing(){if(!task)return;surface.replaceChildren(expression(`${task.whole} = ${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`));const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);}
  function drawFriends(){if(!task)return;const text=`${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`;surface.replaceChildren(expression(task.reverse?`10 = ${text}`:`${text} = 10`));

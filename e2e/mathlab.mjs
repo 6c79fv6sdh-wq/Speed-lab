@@ -22,7 +22,7 @@ try{
   check(await page.locator('#tabs-primary-scroll .tab-primary').allTextContents().then(labels=>labels.join('|')==='Тренировки|Спарринг|Мои партии|Прогресс'),name+': chess navigation stays grouped in order');
   check(await page.locator('.math-portal').count()===1,name+': one separate MathLab entrance');
   check(await page.locator('.math-portal').evaluate(el=>innerWidth<=650?el.parentElement.id==='tabs'&&el===el.parentElement.lastElementChild:el.previousElementSibling?.id==='tabs-primary-scroll'),name+': MathLab follows chess navigation');
-  await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===4,name+': four cards through main menu');
+  await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===5,name+': five cards through main menu');
   if(name==='desktop')await page.screenshot({path:`${screenshots}/home-desktop.png`,fullPage:true});
   const go=async id=>{await page.goto(base+'#math-'+id);await page.locator('.mathlab[data-exercise="'+id+'"]').waitFor();};
   const option=async(label,value)=>{if(!await page.locator('.ml-settings').evaluate(el=>el.open))await page.locator('.ml-settings > summary').click();const select=page.getByLabel(label,{exact:true});await select.selectOption(value);};
@@ -52,6 +52,20 @@ try{
   for(let i=0;i<5;i++){
    await page.locator('.ml-dot').first().waitFor();const count=await page.locator('.ml-dot').count();if(i===0){const dot=page.locator('.ml-dot').first();const before=await dot.boundingBox();await page.waitForTimeout(230);const after=await dot.boundingBox();check(Math.abs(before.x-after.x)+Math.abs(before.y-after.y)>1,name+': dots actually move');check(await page.locator('.ml-dot').count()===count,name+': motion preserves count');const bounded=await page.locator('.ml-dots').evaluate(area=>{const a=area.getBoundingClientRect(),dots=[...area.querySelectorAll('.ml-dot')].map(d=>d.getBoundingClientRect());return dots.every(d=>d.left>=a.left&&d.right<=a.right&&d.top>=a.top&&d.bottom<=a.bottom)&&dots.every((d,i)=>dots.slice(i+1).every(b=>d.right<=b.left||b.right<=d.left||d.bottom<=b.top||b.bottom<=d.top));});check(bounded,name+': moving dots stay separated and inside frame');await page.emulateMedia({reducedMotion:'reduce'});check(await dot.evaluate(el=>getComputedStyle(el).animationName)==='none',name+': reduced motion stops movement');await page.emulateMedia({reducedMotion:'no-preference'});}if(name==='desktop'&&i===0)await page.screenshot({path:`${screenshots}/glance-desktop.png`,fullPage:true});await page.getByLabel('Ответ',{exact:true}).waitFor();check(await page.locator('.ml-dot').count()===0,name+': points hidden before answer');if(touch&&i===0){check(!await page.getByLabel('Ответ',{exact:true}).evaluate(el=>document.activeElement===el),name+': touch answer field not autofocused');await page.locator('.ml-keypad').getByRole('button',{name:'7',exact:true}).tap();check(await page.getByLabel('Ответ',{exact:true}).inputValue()==='7'&&!await page.getByLabel('Ответ',{exact:true}).evaluate(el=>document.activeElement===el),name+': keypad does not focus editable field');}await enter(i===0?99:count);await next(i===4);
   }await finish();
+  await go('signs');await option('Заданий в серии','5');await btn('Начать').click();
+  check(await page.locator('.ml-sign-tile').count()<=10,name+': signs total capped at ten');
+  check(await page.locator('.ml-surface input').count()===0,name+': sign answers need no software keyboard');
+  const chooseSign=async(i,n)=>{const b=page.locator('.ml-sign-answer').nth(i).getByRole('button',{name:String(n),exact:true});if(touch)await b.tap();else await b.click();};
+  for(let i=0;i<5;i++){
+   const plus=await page.locator('.ml-sign-plus').count(),minus=await page.locator('.ml-sign-minus').count();
+   if(i===0){const mark=page.locator('.ml-sign-tile').first();if(touch)await mark.tap();else await mark.click();check(await mark.getAttribute('aria-pressed')==='true',name+': signs can be marked');}
+   if(i===0)await page.screenshot({path:`${screenshots}/signs-${name}.png`,fullPage:true});
+   await chooseSign(0,i===0?0:plus);await chooseSign(1,minus);await btn('Проверить').click();
+   check(await page.locator('.ml-sign-correct').count()===(i===0?1:2),name+': both sign counts checked independently');
+   if(i===0)await page.screenshot({path:`${screenshots}/signs-result-${name}.png`,fullPage:true});
+   await page.waitForTimeout(150);check(await page.locator('.ml-sign-form').count()===1,name+': signs wait for next button');await next(i===4);
+  }await finish();check((await page.locator('.ml-stats').innerText()).includes('4 из 5'),name+': sign accuracy and final result');
+  if(name==='phone'){await page.setViewportSize({width:320,height:740});await btn('Новая серия').click();check(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),'320px: signs fit');await btn('Завершить').click();await page.setViewportSize({width,height});}
   // Pointer drag is real on both mouse and touch; invalid destinations preserve objects.
   await go('bridge');
   const total=()=>page.locator('.ml-boxes .ml-ball').count();

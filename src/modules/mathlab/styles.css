@@ -40,3 +40,20 @@
 .mathlab .ml-setting-group .ml-field:has(select[aria-label="Количество точек"]){grid-column:1/-1}
 .mathlab .ml-setting-group:first-child>h3{display:none}
 .mathlab .ml-settings .ml-field{opacity:1}
+
+.mathlab .ml-sign-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:480px;margin:24px auto;padding:16px;border:1px solid var(--ml-line);border-radius:12px;background:var(--well)}
+.mathlab .ml-sign-board>span{aspect-ratio:1}
+.mathlab .ml-sign-tile{position:relative;aspect-ratio:1;min-height:44px;border:1px solid var(--ml-line);border-radius:10px;background:var(--panel);font-size:clamp(30px,7vw,52px);font-weight:600;color:var(--ml-teal);cursor:pointer;line-height:1}
+.mathlab .ml-sign-minus{color:var(--ml-amber)}
+.mathlab .ml-sign-tile[aria-pressed=true]{outline:2px solid currentColor;outline-offset:2px;background:var(--ml-bg)}
+.mathlab .ml-sign-tile[aria-pressed=true]::after{content:'✓';position:absolute;right:5px;top:5px;font-size:14px}
+.mathlab .ml-sign-tile:disabled{opacity:1}
+.mathlab .ml-sign-tile small{position:absolute;bottom:4px;right:6px;font-size:14px}
+.mathlab .ml-sign-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:24px}
+.mathlab .ml-sign-answer{padding:20px;border:1px solid var(--ml-line);border-radius:12px;background:var(--well)}
+.mathlab .ml-sign-answer output{display:block;font-size:32px;font-variant-numeric:tabular-nums;min-height:48px;margin-bottom:12px}
+.mathlab .ml-sign-keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mathlab .ml-sign-keys .btn{min-width:44px;min-height:44px;padding:8px}
+.mathlab .ml-sign-form>button{grid-column:1/-1;justify-self:center;min-width:160px}
+.mathlab .ml-sign-correct{border-color:var(--ml-teal)}.mathlab .ml-sign-wrong{border-color:var(--ml-amber)}
+@media(max-width:650px){.mathlab .ml-sign-form{grid-template-columns:minmax(0,1fr)}.mathlab .ml-sign-board{gap:8px;padding:10px}.mathlab .ml-sign-answer{padding:16px}}
