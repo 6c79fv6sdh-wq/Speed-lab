@@ -199,15 +199,21 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    const tile=el('button',{type:'button',class:`ml-sign-tile ${symbol==='+'?'ml-sign-plus':'ml-sign-minus'}`,'aria-label':symbol==='+'?'Плюс':'Минус','aria-pressed':'false'},[el('span',{'aria-hidden':'true'},[symbol])]);
    tile.addEventListener('click',()=>{const marked=tile.getAttribute('aria-pressed')!=='true';tile.setAttribute('aria-pressed',String(marked));});board.append(tile);
   }
-  const form=el('form',{class:'ml-sign-form'});const answers:(number|null)[]=[null,null];const outputs:HTMLElement[]=[];const groups:HTMLElement[]=[];
+  const form=el('form',{class:'ml-sign-form'});const answers:(number|null)[]=[null,null];const groups:HTMLElement[]=[];
   const check=el('button',{type:'submit',class:'btn ml-primary'},['Проверить']);check.disabled=true;
   for(const [index,title] of ['Плюсы','Минусы'].entries()){
-   const output=el('output',{'aria-label':`Количество: ${title.toLowerCase()}`,'aria-live':'polite'},['—']);outputs.push(output);
-   const group=el('div',{class:'ml-sign-answer',role:'group','aria-label':`Ответ: ${title.toLowerCase()}`},[el('h3',{},[title]),output]);
+   const output=el('output',{'aria-label':`Количество: ${title.toLowerCase()}`,'aria-live':'polite'},['?']);
+   const group=el('div',{class:`ml-sign-answer ${index===0?'ml-answer-plus':'ml-answer-minus'}`,role:'group','aria-label':`Ответ: ${title.toLowerCase()}`},[
+    el('h3',{},[title]),
+    el('div',{class:'ml-sign-count'},[
+     el('span',{class:'ml-answer-symbol','aria-hidden':'true'},[index===0?'+':'−']),
+     el('span',{class:'ml-answer-arrow','aria-hidden':'true'},['→']),output,
+    ]),
+   ]);
    const keys=el('div',{class:'ml-sign-keys'});
    for(let value=0;value<=10;value++){
     const key=el('button',{type:'button',class:'btn','aria-pressed':'false'},[String(value)]);
-    key.addEventListener('click',()=>{if(phase!=='answer')return;answers[index]=value;output.textContent=String(value);keys.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===key)));check.disabled=answers.some(v=>v===null);});keys.append(key);
+    key.addEventListener('click',()=>{if(phase!=='answer')return;answers[index]=value;output.textContent=String(value);group.classList.add('ml-has-answer');keys.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===key)));check.disabled=answers.some(v=>v===null);});keys.append(key);
    }
    group.append(keys);groups.push(group);form.append(group);
   }
