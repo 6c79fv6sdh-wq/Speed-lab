@@ -699,10 +699,10 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function onSignalPointerDown(e: PointerEvent): void {
-    void e;
+    if (exercise !== 'signal' || e.isPrimary === false || e.button !== 0) return;
     const t = performance.now();
     if (sigPhase === 'waiting') {
-      playInteractionSound('answer');
+      playInteractionSound('answer', false);
       // Клик до появления стимула — фальстарт. Расписание не трогаем:
       // уже подготовленный следующий стимул выходит по плану.
       sigRecordTrial(signalFalseStart(sigTrialIndex));
@@ -710,7 +710,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       return;
     }
     if (sigPhase !== 'active' || sigResolved || !sigCurrent) return;
-    playInteractionSound('answer');
+    playInteractionSound('answer', false);
     sigResolved = true;
     sigClearTimer();
     sigRecordTrial(classifyReaction(sigTrialIndex, sigCurrent.color, sigShownAt, t));
@@ -795,7 +795,8 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     if (sigSession) void sigFinish();
   });
 
-  board.wrap.addEventListener('pointerdown', onSignalPointerDown);
+  // React at first contact, before board gesture arbitration; no pressure threshold.
+  boardHost.addEventListener('pointerdown', onSignalPointerDown, { capture: true, passive: true });
 
   /**
    * ---------------------------------------------------------------------
@@ -1370,7 +1371,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     disposed = true;
     board.wrap.removeEventListener('pointermove', onPointerMove);
     board.wrap.removeEventListener('pointerdown', onPointerDown);
-    board.wrap.removeEventListener('pointerdown', onSignalPointerDown);
+    boardHost.removeEventListener('pointerdown', onSignalPointerDown, true);
     board.wrap.removeEventListener('pointerdown', onRoutePointerDown);
     board.wrap.removeEventListener('pointerup', onRoutePointerUp);
     sigClearTimer();
