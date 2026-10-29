@@ -233,6 +233,22 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   const visual=el('div');if(settings.frame)visual.append(tenFrame(task.missingFirst?task.b:task.a));surface.append(visual);
   const hint=button('Подсказка: рамка',()=>{hintUsed=true;visual.replaceChildren(tenFrame(task!.missingFirst?task!.b:task!.a));hint.disabled=true;});if(!settings.frame)surface.append(hint);
   const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);
+  const input=answer.inputs[0];
+  const touchInput=!!window.matchMedia?.('(any-pointer: coarse)').matches||navigator.maxTouchPoints>0;
+  // The on-screen choices are sufficient on touch devices; focusing the display
+  // must not summon the software keyboard. Desktop typing remains available.
+  input.readOnly=touchInput;
+  const pad=el('div',{class:'ml-keypad','aria-label':'Выбери ответ'});
+  for(let n=0;n<=10;n++){
+   const choice=button(String(n),()=>{
+    if(phase!=='answer')return;
+    input.value=String(n);
+    pad.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===choice)));
+    if(touchInput)input.blur();
+   });
+   choice.setAttribute('aria-pressed','false');pad.append(choice);
+  }
+  surface.append(pad);
  }
  function drawGlance(){
   if(!task)return;phase='prepare';surface.replaceChildren(el('p',{class:'ml-ready',role:'status'},['Приготовься']));
