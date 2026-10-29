@@ -10,13 +10,13 @@
 @media(max-width:370px){.mathlab .ml-panel{padding:12px}.mathlab .ml-frame{gap:4px;padding:6px}.mathlab .ml-cell{min-height:40px}.mathlab .ml-equation{font-size:27px}.mathlab .ml-fields{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.mathlab *{animation:none!important;transition:none!important}.mathlab .ml-exposure span{transform:scaleX(1)}}
 
-/* The native range owns pointer and keyboard input; its visible rail and divider
+/* The native range owns keyboard input; the full rail owns pointer input. Its visible rail and divider
    are local to MathLab and share one integer value with the number model. */
-.mathlab .ml-splitter{position:relative;margin:16px 22px 44px;height:56px;border-radius:12px;background:linear-gradient(to right,var(--ml-teal) 0 var(--split),var(--ml-amber) var(--split) 100%);border:1px solid var(--ml-line)}
-.mathlab .ml-splitter.ml-flipped{background:linear-gradient(to right,var(--ml-amber) 0 var(--split),var(--ml-teal) var(--split) 100%)}
-.mathlab .ml-splitter input[type=range]{position:absolute;inset:0;width:calc(100% + 44px);left:-22px;height:56px;margin:0;opacity:0;z-index:2;touch-action:pan-y}
+.mathlab .ml-splitter{position:relative;margin:16px 22px 44px;height:56px;border-radius:12px;background:linear-gradient(to right,var(--ml-teal) 0 var(--split-visual,var(--split)),var(--ml-amber) var(--split-visual,var(--split)) 100%);border:1px solid var(--ml-line);touch-action:none;user-select:none;-webkit-user-select:none}
+.mathlab .ml-splitter.ml-flipped{background:linear-gradient(to right,var(--ml-amber) 0 var(--split-visual,var(--split)),var(--ml-teal) var(--split-visual,var(--split)) 100%)}
+.mathlab .ml-splitter input[type=range]{position:absolute;inset:0;width:calc(100% + 44px);left:-22px;height:56px;margin:0;opacity:0;z-index:2;pointer-events:none}
 .mathlab .ml-splitter:focus-within{outline:3px solid var(--ml-amber);outline-offset:6px}
-.mathlab .ml-split-handle{position:absolute;left:var(--split);top:-6px;bottom:-6px;width:44px;transform:translateX(-50%);display:grid;place-items:center;border:2px solid var(--fg-strong);border-radius:12px;background:var(--well);color:var(--fg-strong);font-size:25px;pointer-events:none;box-shadow:0 2px 6px #0004;transition:left 100ms ease-out}
+.mathlab .ml-split-handle{position:absolute;left:var(--split-visual,var(--split));top:-6px;bottom:-6px;width:44px;transform:translateX(-50%);display:grid;place-items:center;border:2px solid var(--fg-strong);border-radius:12px;background:var(--well);color:var(--fg-strong);font-size:25px;pointer-events:none;box-shadow:0 2px 6px #0004;transition:left 100ms ease-out}
 .mathlab .ml-split-ticks{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
 .mathlab .ml-split-ticks span{position:relative;top:64px;width:0;text-align:center;font-size:14px;font-variant-numeric:tabular-nums;color:var(--fg-strong)}
 .mathlab .ml-split-ticks span::before{content:'';position:absolute;bottom:30px;left:0;height:10px;border-left:1px solid #10221f88}
@@ -67,3 +67,6 @@
 .mathlab .ml-sign-answer output{display:grid;place-items:center;min-width:80px;height:64px;min-height:64px;margin:0;padding:0 12px;border:2px dashed var(--ml-line);border-radius:12px;color:var(--fg);font-size:36px;font-weight:600;line-height:1}
 .mathlab .ml-has-answer output{border-style:solid;border-color:var(--ml-answer-accent);color:var(--fg-strong)}
 .mathlab .ml-sign-answer .btn[aria-pressed=true]{border:2px solid var(--ml-answer-accent);padding:7px;color:var(--fg-strong)}
+
+.mathlab .ml-split-hit{position:absolute;inset:-10px -22px -32px;z-index:3;touch-action:none;cursor:ew-resize}
+.mathlab .ml-splitter.is-dragging .ml-split-handle{transition:none}

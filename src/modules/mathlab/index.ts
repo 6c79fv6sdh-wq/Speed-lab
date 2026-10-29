@@ -4,6 +4,7 @@ import {defaults,generate,signLayout,split,validBridge,createBoxes,occupied,tran
 import {MathSeries,type MathResult} from './engine';
 import {mathStorage} from './storage';
 import {dots,tenFrame,mountBoxes} from './visuals';
+import {mountSplitter} from './splitter';
 import './styles.css';
 const route=(id:Exercise)=>`#math-${id}`;
 const descriptions:Record<Exercise,string>={glance:'Запомни точки и назови их количество.',builder:'Раздели число на две части и найди неизвестную.',friends:'Найди пару чисел, которые вместе дают десять.',bridge:'Переложи шарики, собери десятку и найди сумму.',signs:'Посчитай отдельно плюсы и минусы. Всего не больше десяти знаков.'};
@@ -181,13 +182,13 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   return row;
  }
  function drawBuilder(){
-  surface.replaceChildren();let whole=settings.whole,part=settings.part,flipped=false;const wholeInput=el('input',{type:'number',min:'2',max:'10',value:String(whole),'aria-label':'Целое число'});
+  cleanVisual?.();cleanVisual=null;surface.replaceChildren();let whole=settings.whole,part=settings.part,flipped=false;const wholeInput=el('input',{type:'number',min:'2',max:'10',value:String(whole),'aria-label':'Целое число'});
   const eq=expression('');const visual=el('div');const slider=el('input',{type:'range',min:'0',max:'8',step:'1',value:'8','aria-label':'Первая часть'});
   const rail=el('div',{class:'ml-splitter'});const ticks=el('div',{class:'ml-split-ticks','aria-hidden':'true'});const handle=el('span',{class:'ml-split-handle','aria-hidden':'true'},['↔']);rail.append(slider,handle,ticks);
   const update=()=>{[part]=split(whole,part);rail.style.setProperty('--split',`${100*part/whole}%`);rail.classList.toggle('ml-flipped',flipped);ticks.replaceChildren(...Array.from({length:whole+1},(_,i)=>el('span',{},[String(i)])));slider.max=String(whole);slider.value=String(part);slider.setAttribute('aria-valuetext',`${part} и ${whole-part}`);eq.textContent=`${whole} = ${part} + ${whole-part}`;eq.setAttribute('aria-label',eq.textContent);visual.replaceChildren(builderVisual(whole,part,flipped));settings.whole=whole;settings.part=part;persist();};
   const changeWhole=(value:number)=>{whole=Math.max(2,Math.min(10,Number.isInteger(value)?value:2));wholeInput.value=String(whole);part=Math.min(part,whole);update();};
   wholeInput.addEventListener('change',()=>changeWhole(Number(wholeInput.value)));slider.addEventListener('input',()=>{part=Number(slider.value);update();});
-  surface.append(el('div',{class:'ml-whole-picker'},[button('−',()=>changeWhole(whole-1)),el('label',{},['Число ',wholeInput]),button('+',()=>changeWhole(whole+1))]),eq,visual,el('p',{class:'ml-legend'},['Передвигай разделитель или нажимай на шкалу']),rail,el('div',{class:'ml-legend'},['● Первая группа · ◉ Вторая группа']),button('Поменять местами',()=>{part=whole-part;flipped=!flipped;update();}));update();
+  surface.append(el('div',{class:'ml-whole-picker'},[button('−',()=>changeWhole(whole-1)),el('label',{},['Число ',wholeInput]),button('+',()=>changeWhole(whole+1))]),eq,visual,el('p',{class:'ml-legend'},['Передвигай разделитель или нажимай на шкалу']),rail,el('div',{class:'ml-legend'},['● Первая группа · ◉ Вторая группа']),button('Поменять местами',()=>{part=whole-part;flipped=!flipped;update();}));update();cleanVisual=mountSplitter(rail,slider);
  }
  function drawSigns(){
   if(!task)return;
