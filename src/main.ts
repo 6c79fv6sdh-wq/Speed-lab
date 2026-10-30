@@ -76,6 +76,7 @@ const TRAINING_TABS: Tab[] = [
   { id: 'motorics', label: 'Моторика', mount: mountMotorics },
   { id: 'premove', label: 'Премувы', mount: mountPremove },
   { id: 'reaction', label: 'Тактика', mount: mountReaction },
+  { id: 'material', label: 'Что ценнее?', mount: mathExercise('material') },
   { id: 'openings', label: 'Дебюты', mount: mountOpenings },
 ];
 

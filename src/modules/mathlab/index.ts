@@ -5,10 +5,11 @@ import {MathSeries,type MathResult} from './engine';
 import {mathStorage} from './storage';
 import {dots,tenFrame,mountBoxes} from './visuals';
 import {mountSplitter} from './splitter';
+import {PIECE_VALUES,PIECE_NAMES,materialSign,type MaterialPiece} from './material';
 import './styles.css';
 const route=(id:Exercise)=>`#math-${id}`;
-const descriptions:Record<Exercise,string>={glance:'Запомни точки и назови их количество.',builder:'Раздели число на две части и найди неизвестную.',friends:'Найди пару чисел, которые вместе дают десять.',bridge:'Переложи шарики, собери десятку и найди сумму.',signs:'Посчитай отдельно плюсы и минусы. Всего не больше десяти знаков.'};
-const symbols:Record<Exercise,string>={glance:'•••',builder:'3 | 5',friends:'? + 7',bridge:'10 + ?',signs:'+ −'};
+const descriptions:Record<Exercise,string>={glance:'Запомни точки и назови их количество.',builder:'Раздели число на две части и найди неизвестную.',friends:'Найди пару чисел, которые вместе дают десять.',bridge:'Переложи шарики, собери десятку и найди сумму.',signs:'Посчитай отдельно плюсы и минусы. Всего не больше десяти знаков.',material:'Сравни стоимость двух групп фигур и выбери знак.'};
+const symbols:Record<Exercise,string>={glance:'•••',builder:'3 | 5',friends:'? + 7',bridge:'10 + ?',signs:'+ −',material:'♕ ≷ ♜'};
 function stat(label:string,value:string):HTMLElement{return el('div',{class:'ml-stat'},[el('span',{},[label]),el('strong',{},[value])]);}
 function history(host:HTMLElement,results:MathResult[]):void {
  host.replaceChildren();if(!results.length){host.append(el('p',{class:'ml-muted'},['Завершённые тренировки появятся здесь.']));return;}
@@ -20,17 +21,17 @@ export const mountMathLab:MountFn=(root,ctx)=>{
  const page=el('div',{class:'mathlab'});root.append(page);
  page.append(el('p',{class:'ml-eyebrow'},['MathLab']),el('h1',{},['Математика']),el('p',{class:'ml-intro'},['Числа, их части и первые шаги в устном счёте.']));
  const cards=el('div',{class:'ml-cards'});
- for(const id of EXERCISES)cards.append(el('a',{class:'ml-card',href:route(id)},[el('span',{class:'ml-symbol','aria-hidden':'true'},[symbols[id]]),el('h2',{},[TITLES[id]]),el('p',{},[descriptions[id]]),el('span',{class:'ml-card-link'},['Открыть →'])]));
- page.append(cards);const recent=el('section',{class:'ml-panel'},[el('h2',{},['Последние тренировки'])]);const list=el('div');history(list,mathStorage(ctx.profile.id).results());recent.append(list);page.append(recent);
+ for(const id of EXERCISES.filter(id=>id!=='material'))cards.append(el('a',{class:'ml-card',href:route(id)},[el('span',{class:'ml-symbol','aria-hidden':'true'},[symbols[id]]),el('h2',{},[TITLES[id]]),el('p',{},[descriptions[id]]),el('span',{class:'ml-card-link'},['Открыть →'])]));
+ page.append(cards);const recent=el('section',{class:'ml-panel'},[el('h2',{},['Последние тренировки'])]);const list=el('div');history(list,mathStorage(ctx.profile.id).results().filter(r=>r.exercise!=='material'));recent.append(list);page.append(recent);
  return ()=>{};
 };
 export function mathExercise(id:Exercise):MountFn{return(root,ctx)=>mountExercise(root,ctx,id);}
 function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  const store=mathStorage(ctx.profile.id);let settings=store.settings(id);
  // Exploration is meaningful only in the two manipulatives.
- if((id==='glance'||id==='friends'||id==='signs')&&settings.mode==='explore')settings.mode='learn';
+ if((id==='glance'||id==='friends'||id==='signs'||id==='material')&&settings.mode==='explore')settings.mode='learn';
  const page=el('div',{class:'mathlab','data-exercise':id});root.append(page);
- page.append(el('a',{href:'#math',class:'ml-back'},['← Математика']),el('h1',{},[TITLES[id]]));
+ page.append(el('a',{href:id==='material'?'#today':'#math',class:'ml-back'},[id==='material'?'← Шахматные тренировки':'← Математика']),el('h1',{},[TITLES[id]]));
  const settingsDetails=el('details',{class:'ml-panel ml-settings',open:''},[el('summary',{},['Настройки'])]);
  const fields=el('fieldset',{class:'ml-fields'});settingsDetails.append(fields);
  const stage=el('section',{class:'ml-panel ml-stage','aria-label':TITLES[id]});
@@ -118,6 +119,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   if(series.complete){finish();return;}
   task=generate(id,settings,Math.random,task??undefined);series.begin();phase='answer';taskStart=performance.now();
   progress.textContent=`Задание ${series.answers.length+1} из ${settings.count}`;
+  if(id==='material'){drawMaterial();return;}
   if(id==='signs'){drawSigns();return;}
   if(id==='glance'){drawGlance();return;}
   if(id==='builder')drawMissing();
@@ -135,7 +137,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   if(phase!=='answer'||!task)return;
   phase='feedback';clear();
   if(series&&!reviewing)series.submit({task:{...task},correct,answer,responseMs:Math.max(0,performance.now()-taskStart),hint:hintUsed,...details});
-  feedback.replaceChildren(el('p',{class:correct?'ml-correct':'ml-retry'},[correct?'Верно!':`Попробуй ещё раз. Правильный ответ: ${task.answer}.`]));
+  feedback.replaceChildren(el('p',{class:correct?'ml-correct':'ml-retry'},[correct?'Верно!':`Попробуй ещё раз. Правильный ответ: ${id==='material'?materialSign(task.a,task.b):task.answer}.`]));
   surface.querySelectorAll<HTMLInputElement|HTMLButtonElement>('input,button').forEach(b=>{b.disabled=true;});
   const actions=el('div',{class:'ml-actions'});
   if(!correct){actions.append(button(id==='glance'?'Посмотреть ещё раз':'Попробовать ещё раз',()=>retry()));}
@@ -149,6 +151,12 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    feedback.prepend(expression(`${task.a} + ${task.b} = 10`));
    feedback.append(tenFrame(task.a,task.b));
    if(settings.auto&&correct)later(nextTask,1100);
+  }
+  if(id==='material'){
+   const sum=(group:MaterialPiece[])=>group.map(p=>PIECE_VALUES[p]).join(' + ');
+   feedback.prepend(expression(`${task.a} ${materialSign(task.a,task.b)} ${task.b}`));
+   surface.querySelectorAll('.ml-material-group').forEach((group,i)=>group.append(el('p',{class:'ml-material-total'},[`${sum(i===0?task!.left!:task!.right!)} = ${i===0?task!.a:task!.b}`])));
+   feedback.append(el('p',{},[`Слева: ${sum(task.left!)} = ${task.a}. Справа: ${sum(task.right!)} = ${task.b}.`]));
   }
   if(id==='builder'){feedback.prepend(expression(`${task.whole} = ${task.a} + ${task.b}`));feedback.append(builderVisual(task.whole,task.a));}
   if(id==='bridge'&&settings.level===3){
@@ -166,14 +174,14 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  }
  function retry(){
   if(!task)return;clear();reviewing=true;feedback.replaceChildren();phase='answer';taskStart=performance.now();
-  if(id==='glance')drawGlance();else if(id==='builder')drawMissing();else if(id==='friends')drawFriends();else if(id==='signs')drawSigns();else{boxes=createBoxes(task.a,task.b);drawBridge();}
+  if(id==='glance')drawGlance();else if(id==='builder')drawMissing();else if(id==='friends')drawFriends();else if(id==='signs')drawSigns();else if(id==='material')drawMaterial();else{boxes=createBoxes(task.a,task.b);drawBridge();}
  }
  function finish(){
   clear();if(!series)return;const result=series.finish();series=null;phase='done';
   if(!store.saveResult(result))savedNotice.textContent='Результат доступен в этой вкладке. Постоянное сохранение сейчас недоступно.';
   fields.disabled=false;stop.hidden=true;restart.hidden=true;start.hidden=false;start.textContent='Новая серия';progress.textContent='Тренировка завершена';feedback.replaceChildren();
   surface.replaceChildren(el('div',{class:'ml-stats'},[stat('Верно',`${result.correct} из ${result.answers.length}`),stat('Точность',`${Math.round(result.correct/result.answers.length*100)}%`),stat('Ошибок',String(result.errors)),stat('С подсказкой',String(result.hints))]));
-  const wrong=result.answers.filter(a=>!a.correct);if(wrong.length){const values=[...new Set(wrong.map(a=>id==='friends'?`${a.task.a} + ${a.task.b}`:id==='bridge'?`${a.task.a} + ${a.task.b}`:id==='signs'?`Плюсы ${a.task.a}, минусы ${a.task.b}`:String(a.task.whole)))];surface.append(el('p',{},[`Можно повторить: ${values.join(', ')}.`]));}
+  const wrong=result.answers.filter(a=>!a.correct);if(wrong.length){const values=[...new Set(wrong.map(a=>id==='material'?`${a.task.a} ${materialSign(a.task.a,a.task.b)} ${a.task.b}`:id==='friends'?`${a.task.a} + ${a.task.b}`:id==='bridge'?`${a.task.a} + ${a.task.b}`:id==='signs'?`Плюсы ${a.task.a}, минусы ${a.task.b}`:String(a.task.whole)))];surface.append(el('p',{},[`Можно повторить: ${values.join(', ')}.`]));}
   refreshHistory();
  }
  function builderVisual(whole:number,a:number,flipped=false):HTMLElement {
@@ -227,6 +235,22 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    groups.forEach((group,i)=>{group.classList.add(answers[i]===expected[i]?'ml-sign-correct':'ml-sign-wrong');group.append(el('p',{},[answers[i]===expected[i]?'✓ Верно':`× Ответ: ${expected[i]}. У тебя: ${answers[i]}.`]));});
    const counters={'+':0,'−':0};board.querySelectorAll<HTMLButtonElement>('button').forEach(tile=>{const symbol=tile.classList.contains('ml-sign-plus')?'+':'−';counters[symbol]++;tile.append(el('small',{'aria-hidden':'true'},[String(counters[symbol])]));});
   });
+ }
+ function drawMaterial(){
+  if(!task?.left||!task.right)return;
+  surface.replaceChildren(el('p',{class:'ml-instruction'},['Какая группа ценнее? Выбери знак.']));
+  const group=(pieces:MaterialPiece[],title:string)=>el('section',{class:'ml-material-group','aria-label':title},[
+   el('h3',{},[title]),el('div',{class:'ml-material-pieces'},pieces.map(p=>el('img',{src:`${import.meta.env.BASE_URL}piece/merida/w${p}.svg`,alt:PIECE_NAMES[p],draggable:'false'})))
+  ]);
+  const choices=el('div',{class:'ml-material-choices',role:'group','aria-label':'Сравнение стоимости'});
+  for(const [sign,label,value] of [['<','Слева дешевле',-1],['=','Одинаковая стоимость',0],['>','Слева дороже',1]] as const){
+   const choice=button(sign,()=>{if(phase!=='answer')return;choice.setAttribute('aria-pressed','true');submit(task!.answer===value,sign);});
+   choice.setAttribute('aria-label',label);choice.setAttribute('aria-pressed','false');choices.append(choice);
+  }
+  surface.append(el('div',{class:'ml-material-comparison'},[group(task.left,'Слева'),choices,group(task.right,'Справа')]));
+  const reference=el('details',{class:'ml-material-reference'},[el('summary',{},['Стоимость фигур'])]);
+  reference.addEventListener('toggle',()=>{if(reference.open&&phase==='answer')hintUsed=true;});
+  reference.append(el('p',{},['Пешка — 1 · Конь — 3 · Слон — 3 · Ладья — 5 · Ферзь — 9']));surface.append(reference);
  }
  function drawMissing(){if(!task)return;surface.replaceChildren(expression(`${task.whole} = ${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`));const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);appendNumberChoices(answer.inputs[0]);}
  function drawFriends(){if(!task)return;const text=`${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`;surface.replaceChildren(expression(task.reverse?`10 = ${text}`:`${text} = 10`));

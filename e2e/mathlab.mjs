@@ -4,7 +4,7 @@ import {readFile,mkdir} from 'node:fs/promises';
 import {extname,join} from 'node:path';
 import assert from 'node:assert/strict';
 const dist=new URL('../dist/',import.meta.url).pathname;
-const server=createServer(async(req,res)=>{const path=decodeURIComponent(new URL(req.url,'http://localhost').pathname);if(!path.startsWith('/lab/'))return res.writeHead(404).end();const file=path==='/lab/'?'index.html':path.slice(5);if(file.includes('..'))return res.writeHead(400).end();try{const body=await readFile(join(dist,file));res.writeHead(200,{'Content-Type':({'.js':'text/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.png':'image/png','.webmanifest':'application/manifest+json'})[extname(file)]??'application/octet-stream'}).end(body);}catch{res.writeHead(404).end();}});
+const server=createServer(async(req,res)=>{const path=decodeURIComponent(new URL(req.url,'http://localhost').pathname);if(!path.startsWith('/lab/'))return res.writeHead(404).end();const file=path==='/lab/'?'index.html':path.slice(5);if(file.includes('..'))return res.writeHead(400).end();try{const body=await readFile(join(dist,file));res.writeHead(200,{'Content-Type':({'.js':'text/javascript','.css':'text/css','.html':'text/html','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'})[extname(file)]??'application/octet-stream'}).end(body);}catch{res.writeHead(404).end();}});
 await new Promise(resolve=>server.listen(5713,'127.0.0.1',resolve));
 const base='http://127.0.0.1:5713/lab/';const token=(await readFile(join(dist,'e2e-token.txt'),'utf8')).trim();
 const screenshots=process.env.UI_THEME==='brilliant'?'docs/themes/mathlab':'docs/mathlab/screenshots';
@@ -25,9 +25,24 @@ try{
   await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===5,name+': five cards through main menu');
   if(name==='desktop')await page.screenshot({path:`${screenshots}/home-desktop.png`,fullPage:true});
   const go=async id=>{await page.goto(base+'#math-'+id);await page.locator('.mathlab[data-exercise="'+id+'"]').waitFor();};
+  await page.locator('#tabs').getByRole('button',{name:'Тренировки',exact:true}).click();
+  await page.locator('#tabs').getByRole('button',{name:'Что ценнее?',exact:true}).click();
+  await page.locator('.mathlab[data-exercise=material]').waitFor();
+  check(page.url().endsWith('#material'),name+': material exercise belongs to chess training');
+  await page.getByRole('button',{name:'Начать',exact:true}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll('.ml-material-pieces img')].length>1&&[...document.querySelectorAll('.ml-material-pieces img')].every(i=>i.complete&&i.naturalWidth>0));
+  check(true,name+': material SVG assets resolve under published base path');
+  await page.reload();await page.locator('.mathlab[data-exercise=material]').waitFor();
+  check(true,name+': direct material route survives reload');
+
   const option=async(label,value)=>{if(!await page.locator('.ml-settings').evaluate(el=>el.open))await page.locator('.ml-settings > summary').click();const select=page.getByLabel(label,{exact:true});await select.selectOption(value);};
   const btn=label=>page.locator('.mathlab').getByRole('button',{name:label,exact:true});
-  const enter=async(value,label='Ответ')=>{const input=page.getByLabel(label,{exact:true});await input.fill(String(value));await input.press('Enter');await page.locator('.ml-feedback .ml-actions').waitFor();};
+  const enter=async(value,label='Ответ')=>{const input=page.getByLabel(label,{exact:true});
+   if(await input.evaluate(el=>el.readOnly)){
+    if(value>10){const nums=(await page.locator('.ml-equation').innerText()).match(/\d+/g).map(Number);const builder=await page.locator('.mathlab').getAttribute('data-exercise')==='builder';const correct=builder?nums[0]-nums[1]:10-(nums.find(n=>n!==10)??10);value=correct===0?1:0;}
+    await page.locator('.ml-keypad').getByRole('button',{name:String(value),exact:true}).tap();await btn('Проверить').click();
+   }else{await input.fill(String(value));await input.press('Enter');}
+   await page.locator('.ml-feedback .ml-actions').waitFor();};
   const next=async last=>{await btn(last?'Результат':'Далее').click();};
   const finish=async()=>{check(await page.locator('.ml-progress').innerText()==='Тренировка завершена',name+': series finished');};
   // Builder exploration is live and persisted; test every unknown location through real forms.

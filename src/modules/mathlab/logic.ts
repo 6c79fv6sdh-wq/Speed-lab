@@ -1,4 +1,5 @@
-export const EXERCISES = ['glance', 'builder', 'friends', 'bridge', 'signs'] as const;
+import {materialTask,materialValue,type MaterialPiece} from './material';
+export const EXERCISES = ['glance', 'builder', 'friends', 'bridge', 'signs', 'material'] as const;
 export type Exercise = typeof EXERCISES[number];
 export interface MathSettings {
   mode: 'learn' | 'train' | 'explore'; count: number; min: number; max: number;
@@ -6,7 +7,7 @@ export interface MathSettings {
   unknown: 'first' | 'second' | 'random'; level: number; frame: boolean;
   whole: number; part: number; auto: boolean; edges: boolean; numbers: number[]; a: number; b: number;
 }
-export const TITLES: Record<Exercise,string> = {glance:'Мгновенный взгляд',builder:'Конструктор числа',friends:'Друзья десятки',bridge:'Дострой десятку',signs:'Плюсы и минусы'};
+export const TITLES: Record<Exercise,string> = {glance:'Мгновенный взгляд',builder:'Конструктор числа',friends:'Друзья десятки',bridge:'Дострой десятку',signs:'Плюсы и минусы',material:'Что ценнее?'};
 export function defaults(id:Exercise):MathSettings {
   return {mode:id==='builder'||id==='bridge'?'explore':'learn',count:10,min:id==='builder'||id==='signs'?2:1,max:id==='builder'||id==='signs'?10:4,
     exposure:1000,moving:false,layout:'standard',unknown:'random',level:1,frame:true,whole:8,part:8,auto:false,edges:false,numbers:[1,2,3,4,5,6,7,8,9],a:8,b:5};
@@ -34,7 +35,7 @@ export function split(whole:number,part:number):[number,number] {
   const a=Math.max(0,Math.min(w,Math.round(part)));
   return [a,w-a];
 }
-export interface Task {a:number;b:number;whole:number;answer:number;missingFirst:boolean;reverse:boolean}
+export interface Task {a:number;b:number;whole:number;answer:number;missingFirst:boolean;reverse:boolean;left?:MaterialPiece[];right?:MaterialPiece[]}
 export function generate(id:Exercise,s:MathSettings,rng:Rng=Math.random,previous?:Task):Task {
   let task:Task;
   for(let attempt=0;;attempt++){
@@ -44,6 +45,7 @@ export function generate(id:Exercise,s:MathSettings,rng:Rng=Math.random,previous
     if(id==='builder'){whole=pickInt(rng,s.min,s.max);a=pickInt(rng,0,whole);b=whole-a;}
     if(id==='friends'){const ns=s.edges?[...s.numbers,0,10]:s.numbers;a=ns[pickInt(rng,0,ns.length-1)];b=complement(a);whole=10;missingFirst=s.level===3&&rng()<.5;}
     if(id==='bridge'){a=pickInt(rng,2,9);b=pickInt(rng,11-a,9);whole=a+b;}
+    if(id==='material'){const groups=materialTask(rng);a=materialValue(groups.left);b=materialValue(groups.right);task={a,b,whole:a+b,answer:Math.sign(a-b),missingFirst:false,reverse:false,...groups};if(attempt>=10||!previous||JSON.stringify(task)!==JSON.stringify(previous))return task;continue;}
     task={a,b,whole,answer:id==='bridge'||id==='glance'||id==='signs'?whole:missingFirst?a:b,missingFirst,reverse:id==='friends'&&s.level===3&&rng()<.5};
     if(attempt>=10||!previous||JSON.stringify(task)!==JSON.stringify(previous))return task;
   }
