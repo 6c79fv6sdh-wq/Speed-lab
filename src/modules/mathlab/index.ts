@@ -240,7 +240,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   if(!task?.left||!task.right)return;
   surface.replaceChildren(el('p',{class:'ml-instruction'},['Какая группа ценнее? Выбери знак.']));
   const group=(pieces:MaterialPiece[],title:string)=>el('section',{class:'ml-material-group','aria-label':title},[
-   el('h3',{},[title]),el('div',{class:'ml-material-pieces'},pieces.map(p=>el('img',{src:`${import.meta.env.BASE_URL}piece/merida/w${p}.svg`,alt:PIECE_NAMES[p],draggable:'false'})))
+   el('h3',{},[title]),el('div',{class:'ml-material-pieces'},pieces.map(p=>el('figure',{class:'ml-material-piece'},[el('img',{src:`${import.meta.env.BASE_URL}piece/ivory/w${p}.svg`,alt:PIECE_NAMES[p],draggable:'false'}),el('figcaption',{'aria-hidden':'true'},[PIECE_NAMES[p]])])))
   ]);
   const choices=el('div',{class:'ml-material-choices',role:'group','aria-label':'Сравнение стоимости'});
   for(const [sign,label,value] of [['<','Слева дешевле',-1],['=','Одинаковая стоимость',0],['>','Слева дороже',1]] as const){

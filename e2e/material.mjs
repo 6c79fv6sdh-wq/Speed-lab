@@ -16,6 +16,7 @@ try{
   const value=side=>page.getByRole('region',{name:side,exact:true}).locator('img').evaluateAll(images=>images.reduce((n,img)=>n+({Пешка:1,Конь:3,Слон:3,Ладья:5,Ферзь:9}[img.alt]),0));
   for(let i=0;i<5;i++){
    const a=await value('Слева'),b=await value('Справа');const index=a===b?1:a>b?2:0;
+   await page.waitForFunction(()=>[...document.querySelectorAll('.ml-material-pieces img')].every(img=>img.complete&&img.naturalWidth>0));
    assert.equal(await page.locator('.ml-material-pieces img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0)),true,'piece SVGs loaded');
    if(i===0){await page.screenshot({path:`docs/material/screenshots/${name}-task.png`,fullPage:true});
     if(touch)await buttons.nth((index+1)%3).tap();else await buttons.nth((index+1)%3).click();
