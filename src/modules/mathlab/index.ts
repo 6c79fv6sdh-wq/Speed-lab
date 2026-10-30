@@ -228,12 +228,14 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    const counters={'+':0,'−':0};board.querySelectorAll<HTMLButtonElement>('button').forEach(tile=>{const symbol=tile.classList.contains('ml-sign-plus')?'+':'−';counters[symbol]++;tile.append(el('small',{'aria-hidden':'true'},[String(counters[symbol])]));});
   });
  }
- function drawMissing(){if(!task)return;surface.replaceChildren(expression(`${task.whole} = ${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`));const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);}
+ function drawMissing(){if(!task)return;surface.replaceChildren(expression(`${task.whole} = ${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`));const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);appendNumberChoices(answer.inputs[0]);}
  function drawFriends(){if(!task)return;const text=`${task.missingFirst?'?':task.a} + ${task.missingFirst?task.b:'?'}`;surface.replaceChildren(expression(task.reverse?`10 = ${text}`:`${text} = 10`));
   const visual=el('div');if(settings.frame)visual.append(tenFrame(task.missingFirst?task.b:task.a));surface.append(visual);
   const hint=button('Подсказка: рамка',()=>{hintUsed=true;visual.replaceChildren(tenFrame(task!.missingFirst?task!.b:task!.a));hint.disabled=true;});if(!settings.frame)surface.append(hint);
   const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);
-  const input=answer.inputs[0];
+  appendNumberChoices(answer.inputs[0]);
+ }
+ function appendNumberChoices(input:HTMLInputElement){
   const touchInput=!!window.matchMedia?.('(any-pointer: coarse)').matches||navigator.maxTouchPoints>0;
   // The on-screen choices are sufficient on touch devices; focusing the display
   // must not summon the software keyboard. Desktop typing remains available.
