@@ -244,6 +244,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   ]);
   boardHost.append(signalOverlay);
 
+  let signalFlashTimer:number|null=null;
   function flashSignal(color: SignalColor, showMs: number): void {
     const [core, mid, deep] = SIGNAL_PALETTE[color];
     signalOverlay.style.setProperty('--signal-core', core);
@@ -261,10 +262,13 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     // а не соревнуется за внимание. Только у «Сигнала» (side--signal) —
     // у «Клика» flashSignal вообще не вызывается.
     sideHost.classList.add('signal-live');
-    window.setTimeout(() => sideHost.classList.remove('signal-live'), showMs);
+    if(signalFlashTimer!==null)window.clearTimeout(signalFlashTimer);
+    signalFlashTimer=window.setTimeout(() => {sideHost.classList.remove('signal-live');signalFlashTimer=null;}, showMs);
   }
 
   function hideSignal(): void {
+    if(signalFlashTimer!==null)window.clearTimeout(signalFlashTimer);
+    signalFlashTimer=null;
     signalOverlay.classList.remove('signal-pulse');
     sideHost.classList.remove('signal-live');
   }
@@ -688,6 +692,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function sigAdvance(): void {
+    hideSignal();
     sigTrialIndex++;
     sigCurrent = null;
     sigRenderLive();

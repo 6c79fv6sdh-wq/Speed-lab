@@ -135,3 +135,19 @@ describe('агрегаты сессии', () => {
     expect(accuracy([falseStart(0), falseStart(1)])).toBeNull();
   });
 });
+
+describe('граница окна реакции независимо от задержек таймера',()=>{
+ it('последний момент перед 700 мс — верная реакция, граница и позже — пропуск',()=>{
+  expect(classifyReaction(0,'green',1000,1699.99).outcome).toBe('hit');
+  for(const t of [1700,1700.01,2500]){const r=classifyReaction(0,'green',1000,t);expect(r.outcome).toBe('miss');expect(r.reactionMs).toBeNull();}
+ });
+ it.each(['blue','purple','amber','red'] as const)('%s: касание в окне — ошибка, отсутствие реакции — верно',color=>{
+  expect(classifyReaction(0,color,1000,1699).outcome).toBe('falseAlarm');
+  expect(classifyReaction(0,color,1000,1700).outcome).toBe('correctIgnore');
+  expect(classifyTimeout(0,color).outcome).toBe('correctIgnore');
+ });
+ it('время до появления сигнала не может стать отрицательным рекордом',()=>{
+  expect(classifyReaction(0,'green',1000,999).outcome).toBe('falseStart');
+  expect(reactionTimes([classifyReaction(0,'green',1000,999)])).toEqual([]);
+ });
+});

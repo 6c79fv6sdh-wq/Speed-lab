@@ -80,6 +80,10 @@ export function classifyReaction(
   shownAt: number,
   clickedAt: number,
 ): TrialResult {
+  // Judge the actual elapsed time, even if a busy browser has not run the
+  // timeout callback yet. A late contact resolves this stimulus only once.
+  if(clickedAt<shownAt)return falseStart(index);
+  if(clickedAt-shownAt>=DEFAULT_SIGNAL_TIMINGS.reactionWindowMs)return classifyTimeout(index,color);
   const isTarget = color === TARGET_COLOR;
   return {
     index,
