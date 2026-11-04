@@ -29,3 +29,35 @@ it('works when local storage is blocked and resets safely while transitioning',a
   await vi.advanceTimersByTimeAsync(1000);expect(root.querySelector('.ml-equation')!.textContent).toBe(text);expect(root.querySelectorAll('.ml-keypad button')).toHaveLength(21);expect(root.querySelector('.ml-stats')!.textContent).toContain('Решено0');
  }finally{dispose();root.remove();storage.mockRestore();vi.useRealTimers();}
 });
+it('survival ends on the first error, restores the ended state, and restarts cleanly',async()=>{
+ vi.useFakeTimers();const root=document.createElement('main');document.body.append(root);const ctx={profile:{id:'flow-survival-unit'}} as AppContext;let dispose=mountAdditionFlow(root,ctx);
+ const choose=(n:number)=>root.querySelector<HTMLButtonElement>(`[data-value="${n}"]`)!.click();
+ try{
+  const mode=root.querySelector<HTMLSelectElement>('[aria-label="Режим"]')!;mode.value='survival';mode.dispatchEvent(new Event('change'));
+  expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(1);
+  const sum=()=>[...root.querySelector('.ml-equation')!.textContent!.matchAll(/\d+/g)].reduce((n,m)=>n+Number(m[0]),0);
+  choose(sum());await vi.advanceTimersByTimeAsync(350);choose(0);choose(0);
+  expect(root.textContent).toContain('Попытка завершена');expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(0);expect(root.querySelector('.ml-stats')!.textContent).toContain('Точность50%');
+  expect([...root.querySelectorAll<HTMLButtonElement>('.ml-keypad button')].every(b=>b.disabled)).toBe(true);
+  dispose();root.replaceChildren();dispose=mountAdditionFlow(root,ctx);expect(root.textContent).toContain('Попытка завершена');
+  [...root.querySelectorAll('button')].find(b=>b.textContent==='Новая попытка')!.click();expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(1);expect(root.querySelector('.ml-stats')!.textContent).toContain('Решено0');
+ }finally{dispose();root.remove();vi.useRealTimers();}
+});
+it('three lives disappear once per separate error and mode changes cancel pending cooldowns',async()=>{
+ vi.useFakeTimers();const root=document.createElement('main');document.body.append(root);const dispose=mountAdditionFlow(root,{profile:{id:'flow-three-unit'}} as AppContext);
+ try{
+  const mode=root.querySelector<HTMLSelectElement>('[aria-label="Режим"]')!;mode.value='lives';mode.dispatchEvent(new Event('change'));
+  const wrong=()=>root.querySelector<HTMLButtonElement>('[data-value="0"]')!.click();
+  expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(3);wrong();wrong();expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(2);
+  await vi.advanceTimersByTimeAsync(350);wrong();expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(350);wrong();expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(0);expect(root.textContent).toContain('Попытка завершена');
+  mode.value='lives';mode.dispatchEvent(new Event('change'));wrong();mode.value='endless';mode.dispatchEvent(new Event('change'));await vi.advanceTimersByTimeAsync(1000);
+  expect(root.querySelector<HTMLElement>('.ml-flow-lives')!.hidden).toBe(true);expect(root.querySelector('.ml-stats')!.textContent).toContain('Ошибок0');wrong();expect(root.textContent).toContain('Попробуй ещё раз');expect(root.querySelector('.ml-flow-result')!.hasAttribute('hidden')).toBe(true);
+ }finally{dispose();root.remove();vi.useRealTimers();}
+});
+it('preserves legacy endless progress and rejects inconsistent life snapshots',()=>{
+ const old={version:1,limit:10,task:{a:3,b:4},hadError:false,solved:7,correct:6,errors:1};const id='flow-legacy';localStorage.setItem(`sciencechess-mathlab:v1:${id}:addition-flow`,JSON.stringify(old));
+ const root=document.createElement('main');const dispose=mountAdditionFlow(root,{profile:{id}} as AppContext);
+ try{expect(root.querySelector('.ml-stats')!.textContent).toContain('Решено7');expect(root.querySelector<HTMLSelectElement>('[aria-label="Режим"]')!.value).toBe('endless');}finally{dispose();}
+ expect(validFlow({...old,mode:'lives',lives:0,ended:false})).toBe(false);expect(validFlow({...old,mode:'lives',lives:-1,ended:true})).toBe(false);expect(validFlow({...old,mode:'survival',lives:3,ended:false})).toBe(false);expect(validFlow({...old,mode:'lives',lives:0,ended:true})).toBe(true);
+});

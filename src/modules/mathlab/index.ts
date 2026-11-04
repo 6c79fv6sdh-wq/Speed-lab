@@ -22,7 +22,7 @@ export const mountMathLab:MountFn=(root,ctx)=>{
  page.append(el('p',{class:'ml-eyebrow'},['MathLab']),el('h1',{},['Математика']),el('p',{class:'ml-intro'},['Числа, их части и первые шаги в устном счёте.']));
  const cards=el('div',{class:'ml-cards'});
  for(const id of EXERCISES.filter(id=>id!=='material'))cards.append(el('a',{class:'ml-card',href:route(id)},[el('span',{class:'ml-symbol','aria-hidden':'true'},[symbols[id]]),el('h2',{},[TITLES[id]]),el('p',{},[descriptions[id]]),el('span',{class:'ml-card-link'},['Открыть →'])]));
- cards.append(el('a',{class:'ml-card',href:'#math-addition-flow'},[el('span',{class:'ml-symbol','aria-hidden':'true'},['5 + 3']),el('h2',{},['Поток сложения']),el('p',{},['Короткие примеры без конца серии. Выбирай ответ и решай дальше.']),el('span',{class:'ml-card-link'},['Открыть →'])]));
+ cards.append(el('a',{class:'ml-card',href:'#math-addition-flow'},[el('span',{class:'ml-symbol','aria-hidden':'true'},['5 + 3']),el('h2',{},['Поток сложения']),el('p',{},['Сложение потоком: без конца, до ошибки или с тремя жизнями.']),el('span',{class:'ml-card-link'},['Открыть →'])]));
  page.append(cards);const recent=el('section',{class:'ml-panel'},[el('h2',{},['Последние тренировки'])]);const list=el('div');history(list,mathStorage(ctx.profile.id).results().filter(r=>r.exercise!=='material'));recent.append(list);page.append(recent);
  return ()=>{};
 };

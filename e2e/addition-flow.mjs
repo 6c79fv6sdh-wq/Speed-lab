@@ -25,7 +25,19 @@ try{
   await page.getByLabel('Сложение',{exact:true}).selectOption('20');assert.equal(await page.locator('.ml-keypad button').count(),21);await select(await sum());await page.waitForFunction(()=>document.querySelector('.ml-flow-feedback').textContent==='');
   await page.getByRole('button',{name:'Начать заново',exact:true}).click();assert.ok((await page.locator('.ml-stats').innerText()).includes('Решено\n0'));
   assert.ok(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth));
+  await page.getByLabel('Режим',{exact:true}).selectOption('lives');assert.equal(await page.locator('.ml-flow-heart').count(),3);
+  await select(await sum());await page.waitForFunction(()=>document.querySelector('.ml-flow-feedback').textContent==='');
+  await select(0);assert.equal(await page.locator('.ml-flow-heart').count(),2);assert.ok((await page.locator('.ml-stats').innerText()).includes('50%'));
+  await page.reload();await mount();assert.equal(await page.getByLabel('Режим',{exact:true}).inputValue(),'lives');assert.equal(await page.locator('.ml-flow-heart').count(),2);
+  await page.screenshot({path:`docs/addition-flow/screenshots/${name}-lives.png`,fullPage:true});
+  for(const remaining of [1,0]){await select(0);assert.equal(await page.locator('.ml-flow-heart').count(),remaining);if(remaining)await page.waitForFunction(()=>!document.querySelector('.ml-keypad button').disabled);}
+  assert.ok(await page.getByText('Попытка завершена',{exact:true}).isVisible());assert.ok((await page.locator('.ml-stats').innerText()).includes('50%'));
+  assert.ok(await page.locator('.ml-keypad button').evaluateAll(bs=>bs.every(b=>b.disabled)));
+  await page.reload();await mount();assert.ok(await page.getByText('Попытка завершена',{exact:true}).isVisible());
+  await page.getByRole('button',{name:'Новая попытка',exact:true}).click();assert.equal(await page.locator('.ml-flow-heart').count(),3);
+  await page.getByLabel('Режим',{exact:true}).selectOption('survival');assert.equal(await page.locator('.ml-flow-heart').count(),1);await select(0);assert.equal(await page.locator('.ml-flow-heart').count(),0);assert.ok(await page.getByText('Попытка завершена',{exact:true}).isVisible());
+  await page.getByRole('button',{name:'Новая попытка',exact:true}).click();await page.getByLabel('Режим',{exact:true}).selectOption('endless');assert.ok(!await page.locator('.ml-flow-lives').isVisible());
   await select(await sum());const text=await page.locator('.ml-equation').innerText();await page.evaluate(()=>dispose());await page.waitForTimeout(500);assert.equal(await page.locator('.ml-equation').innerText(),text);
-  assert.deepEqual(errors,[]);console.log(`${name}: 15 continuous additions, retry, first-try accuracy, persisted progress, sum to 20, reset and cleanup passed`);await context.close();
+  assert.deepEqual(errors,[]);console.log(`${name}: 15 continuous additions, retry, first-try accuracy, persisted progress, sum to 20, reset, survival, three hearts, saved lives, end screen and cleanup passed`);await context.close();
  }
 }finally{await browser?.close();server.kill('SIGTERM');}
