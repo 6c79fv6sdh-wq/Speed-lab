@@ -19,11 +19,16 @@ try{
    await page.waitForFunction(()=>[...document.querySelectorAll('.ml-material-pieces img')].every(img=>img.complete&&img.naturalWidth>0));
    assert.equal(await page.locator('.ml-material-pieces img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0)),true,'piece SVGs loaded');
    if(i===0){await page.screenshot({path:`docs/material/screenshots/${name}-task.png`,fullPage:true});
-    if(touch)await buttons.nth((index+1)%3).tap();else await buttons.nth((index+1)%3).click();
+    const wrongPanel=page.getByRole('button',{name:index===2?'Выбрать правую группу':'Выбрать левую группу',exact:true});
+    if(touch)await wrongPanel.tap({position:{x:6,y:6}});else await wrongPanel.click({position:{x:6,y:6}});
     assert.ok(await page.getByText('Попробуй ещё раз.',{exact:false}).isVisible());assert.ok(await buttons.evaluateAll(bs=>bs.every(b=>b.disabled)));
     await page.getByRole('button',{name:'Попробовать ещё раз',exact:true}).click();
    }
-   if(touch)await buttons.nth(index).tap();else await buttons.nth(index).click();assert.ok(await page.getByText('Верно!',{exact:true}).isVisible());
+   const target=index===1?buttons.nth(1):page.getByRole('button',{name:index===2?'Выбрать левую группу':'Выбрать правую группу',exact:true});
+   if(touch)await target.tap();else if(i===2||i===3){await target.focus();await target.press(i===2?'Enter':'Space');}else await target.click();
+   assert.ok(await page.locator('.ml-material-pick').evaluateAll(bs=>bs.every(b=>b.disabled)),'panels lock after answer');
+   if(index!==1)assert.equal(await target.getAttribute('aria-pressed'),'true');
+   assert.ok(await page.getByText('Верно!',{exact:true}).isVisible());
    assert.ok(await page.locator('.ml-feedback').innerText().then(t=>t.includes(`Слева:`)&&t.includes(`= ${a}.`)));
    if(i===0)await page.screenshot({path:`docs/material/screenshots/${name}-answer.png`,fullPage:true});
    await page.getByRole('button',{name:i===4?'Результат':'Далее',exact:true}).click();

@@ -238,16 +238,23 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  }
  function drawMaterial(){
   if(!task?.left||!task.right)return;
-  surface.replaceChildren(el('p',{class:'ml-instruction'},['Какая группа ценнее? Выбери знак.']));
-  const group=(pieces:MaterialPiece[],title:string)=>el('section',{class:'ml-material-group','aria-label':title},[
+  surface.replaceChildren(el('p',{class:'ml-instruction'},['Нажми на более ценную группу или выбери «=».']));
+  const choose=(value:number)=>{
+   if(phase!=='answer'||!task)return;
+   surface.querySelectorAll<HTMLElement>('[data-material-answer]').forEach(control=>control.setAttribute('aria-pressed',String(Number(control.dataset.materialAnswer)===value)));
+   submit(task.answer===value,value===0?'=':value>0?'>':'<');
+  };
+  const group=(pieces:MaterialPiece[],title:string,value:number)=>el('section',{class:'ml-material-group','aria-label':title},[
+   Object.assign(el('button',{type:'button',class:'ml-material-pick','aria-label':value===1?'Выбрать левую группу':'Выбрать правую группу','aria-pressed':'false','data-material-answer':String(value)}),{onclick:()=>choose(value)}),
    el('h3',{},[title]),el('div',{class:'ml-material-pieces'},pieces.map(p=>el('figure',{class:'ml-material-piece'},[el('img',{src:`${import.meta.env.BASE_URL}piece/ivory/w${p}.svg`,alt:PIECE_NAMES[p],draggable:'false'}),el('figcaption',{'aria-hidden':'true'},[PIECE_NAMES[p]])])))
   ]);
   const choices=el('div',{class:'ml-material-choices',role:'group','aria-label':'Сравнение стоимости'});
   for(const [sign,label,value] of [['<','Слева дешевле',-1],['=','Одинаковая стоимость',0],['>','Слева дороже',1]] as const){
-   const choice=button(sign,()=>{if(phase!=='answer')return;choice.setAttribute('aria-pressed','true');submit(task!.answer===value,sign);});
+   const choice=button(sign,()=>choose(value));
+   choice.dataset.materialAnswer=String(value);
    choice.setAttribute('aria-label',label);choice.setAttribute('aria-pressed','false');choices.append(choice);
   }
-  surface.append(el('div',{class:'ml-material-comparison'},[group(task.left,'Слева'),choices,group(task.right,'Справа')]));
+  surface.append(el('div',{class:'ml-material-comparison'},[group(task.left,'Слева',1),choices,group(task.right,'Справа',-1)]));
   const reference=el('details',{class:'ml-material-reference'},[el('summary',{},['Стоимость фигур'])]);
   reference.addEventListener('toggle',()=>{if(reference.open&&phase==='answer')hintUsed=true;});
   reference.append(el('p',{},['Пешка — 1 · Конь — 3 · Слон — 3 · Ладья — 5 · Ферзь — 9']));surface.append(reference);

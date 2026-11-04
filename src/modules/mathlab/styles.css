@@ -86,3 +86,9 @@
 .mathlab .ml-material-piece{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0;padding:6px 2px}
 .mathlab .ml-material-piece figcaption{font-size:13px;line-height:1.3;color:var(--fg)}
 .mathlab .ml-material-piece img{object-fit:contain;filter:drop-shadow(0 3px 3px #0005)}
+
+.mathlab .ml-material-group{position:relative}
+.mathlab .ml-material-pick{position:absolute;inset:0;z-index:1;width:100%;height:100%;padding:0;border:0;border-radius:inherit;background:transparent;cursor:pointer;touch-action:manipulation}
+.mathlab .ml-material-pick[aria-pressed=true]{background:transparent;box-shadow:inset 0 0 0 2px var(--ml-teal)}
+.mathlab .ml-material-pick:disabled{cursor:default;opacity:1}
+@media(hover:hover){.mathlab .ml-material-pick:not(:disabled):hover{box-shadow:inset 0 0 0 2px var(--ml-teal)}}
