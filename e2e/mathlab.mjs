@@ -22,8 +22,12 @@ try{
   check(await page.locator('#tabs-primary-scroll .tab-primary').allTextContents().then(labels=>labels.join('|')==='Тренировки|Спарринг|Мои партии|Прогресс'),name+': chess navigation stays grouped in order');
   check(await page.locator('.math-portal').count()===1,name+': one separate MathLab entrance');
   check(await page.locator('.math-portal').evaluate(el=>innerWidth<=650?el.parentElement.id==='tabs'&&el===el.parentElement.lastElementChild:el.previousElementSibling?.id==='tabs-primary-scroll'),name+': MathLab follows chess navigation');
-  await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===5,name+': five cards through main menu');
+  await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===6,name+': six cards through main menu');
   if(name==='desktop')await page.screenshot({path:`${screenshots}/home-desktop.png`,fullPage:true});
+  await page.getByRole('link',{name:/Поток сложения/}).click();await page.locator('.mathlab[data-exercise=addition-flow]').waitFor();
+  check(page.url().endsWith('#math-addition-flow'),name+': continuous addition opens from its card');
+  await page.reload();await page.locator('.mathlab[data-exercise=addition-flow]').waitFor();
+  check(await page.locator('.ml-flow-keypad button').count()===11,name+': direct flow URL has touch answers without keyboard');
   const go=async id=>{await page.goto(base+'#math-'+id);await page.locator('.mathlab[data-exercise="'+id+'"]').waitFor();};
   await page.locator('#tabs').getByRole('button',{name:'Тренировки',exact:true}).click();
   await page.locator('#tabs').getByRole('button',{name:'Что ценнее?',exact:true}).click();
