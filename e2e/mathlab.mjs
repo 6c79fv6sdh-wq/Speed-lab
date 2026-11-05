@@ -19,6 +19,7 @@ try{
   if(process.env.UI_THEME)await page.addInitScript(theme=>localStorage.setItem('chesslab.theme',theme),process.env.UI_THEME);
   await page.goto(base+'#math-builder',{waitUntil:'networkidle'});await page.locator('#profile-name').fill('MathLab test');await page.getByRole('button',{name:'Продолжить',exact:true}).click();await page.getByRole('button',{name:/Готово, к тренировке/}).click();
   await page.locator('.mathlab[data-exercise=builder]').waitFor();check(true,name+': direct exercise URL survives first-run setup');
+  if(await page.locator('.practice-focused').count())await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();
   check(await page.locator('#tabs-primary-scroll .tab-primary').allTextContents().then(labels=>labels.join('|')==='Тренировки|Спарринг|Мои партии|Прогресс'),name+': chess navigation stays grouped in order');
   check(await page.locator('.math-portal').count()===1,name+': one separate MathLab entrance');
   check(await page.locator('.math-portal').evaluate(el=>innerWidth<=650?el.parentElement.id==='tabs'&&el===el.parentElement.lastElementChild:el.previousElementSibling?.id==='tabs-primary-scroll'),name+': MathLab follows chess navigation');
@@ -66,7 +67,7 @@ try{
   for(let i=0;i<5;i++){
    const eq=await page.locator('.ml-equation').innerText();const known=eq.match(/\d+/g).map(Number).find(n=>n!==10)??10;
    check(await page.locator('.ml-surface .ml-frame').count()===0,name+': unassisted friends');await enter(i===0?99:10-known);await next(i===4);
-  }await finish();if(name==='desktop')await page.screenshot({path:`${screenshots}/results-desktop.png`,fullPage:true});await page.reload();await page.locator('.mathlab').waitFor();check(await page.getByLabel('Заданий в серии',{exact:true}).inputValue()==='5',name+': training settings persist');await page.getByText('Мои тренировки',{exact:true}).click();check(await page.locator('.ml-history li').count()>=1,name+': saved result');
+  }await finish();if(name==='desktop')await page.screenshot({path:`${screenshots}/results-desktop.png`,fullPage:true});await page.reload();await page.locator('.mathlab').waitFor();check(await page.getByLabel('Заданий в серии',{exact:true}).inputValue()==='5',name+': training settings persist');if(await page.locator('.practice-focused').count())await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();await page.getByText('Мои тренировки',{exact:true}).click();check(await page.locator('.ml-history li').count()>=1,name+': saved result');
   // Exact visibility interval and manual/automatic next cancellation.
   await go('glance');await option('Заданий в серии','5');await option('Время показа','2000');await page.getByLabel('Движущиеся точки',{exact:true}).check();await btn('Начать').click();
   for(let i=0;i<5;i++){

@@ -10,6 +10,9 @@ export function attachPracticeView(root:HTMLElement):()=>void {
   const shell=stage.closest<HTMLElement>('.mathlab')??stage.parentElement??root;
   const attributes=new Map(['role','aria-label','aria-modal'].map(name=>[name,root.getAttribute(name)]));
   const previousOverflow=document.body.style.overflow;
+  const htmlOverflow=document.documentElement.style.overflow;
+  const viewportStyles=new Map(['width','height','left','top'].map(name=>[name,root.style.getPropertyValue(name)]));
+  const restoreViewport=()=>{for(const [name,value] of viewportStyles){if(value)root.style.setProperty(name,value);else root.style.removeProperty(name);}};
   let active=false;
 
   shell.classList.add('practice-shell');
@@ -26,8 +29,13 @@ export function attachPracticeView(root:HTMLElement):()=>void {
   }
   function fit(){
     if(!active)return;
+    const viewport=window.visualViewport;
+    const height=viewport?.height??innerHeight;
+    root.style.width=`${viewport?.width??innerWidth}px`;
+    root.style.height=`${height}px`;
+    root.style.left=`${viewport?.offsetLeft??0}px`;
+    root.style.top=`${viewport?.offsetTop??0}px`;
     const width=root.clientWidth;
-    const height=window.visualViewport?.height??innerHeight;
     const wide=width>=700||width>height*1.25;
     const reserve=wide?(stage.querySelector('.exercise-seg')?140:100):245;
     const boardSize=Math.max(160,Math.floor(Math.min(wide?width*.57-24:width-24,height-reserve)));
@@ -46,9 +54,10 @@ export function attachPracticeView(root:HTMLElement):()=>void {
     toggle.textContent=value?'← Настройки и разделы':'Играть на одном экране';
     toggle.setAttribute('aria-pressed',String(value));
     document.body.style.overflow=value?'hidden':previousOverflow;
+    document.documentElement.style.overflow=value?'hidden':htmlOverflow;
     if(value)fit();
     else{
-      root.style.removeProperty('--practice-board');
+      root.style.removeProperty('--practice-board');restoreViewport();
       window.dispatchEvent(new Event('practice-layout-change'));
     }
   }
@@ -72,21 +81,21 @@ export function attachPracticeView(root:HTMLElement):()=>void {
   window.addEventListener('keydown',keyboard);
   window.addEventListener('resize',fit);
   window.visualViewport?.addEventListener('resize',fit);
+  window.visualViewport?.addEventListener('scroll',fit);
 
-  const controls=[...stage.querySelectorAll<HTMLButtonElement>('button')];
-  const alreadyRunning=controls.some(b=>b.disabled&&['Старт','Начать'].includes(b.textContent?.trim()??''))
-    &&controls.some(b=>!b.disabled&&['Прервать','Завершить'].includes(b.textContent?.trim()??''));
-  if(stage.classList.contains('ml-flow-stage')||alreadyRunning)set(true);
+  set(true);
 
   return ()=>{
     root.removeEventListener('click',start,true);
     window.removeEventListener('keydown',keyboard);
     window.removeEventListener('resize',fit);
     window.visualViewport?.removeEventListener('resize',fit);
+    window.visualViewport?.removeEventListener('scroll',fit);
     root.classList.remove('practice-focused');
     restoreAttributes();
     root.style.removeProperty('--practice-board');
     document.body.style.overflow=previousOverflow;
+    document.documentElement.style.overflow=htmlOverflow;restoreViewport();
     bar.remove();
     shell.classList.remove('practice-shell');
     stage.classList.remove('practice-stage');
