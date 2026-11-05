@@ -29,6 +29,7 @@ try{
   await page.reload();await page.locator('.mathlab[data-exercise=addition-flow]').waitFor();
   check(await page.locator('.ml-flow-keypad button').count()===11,name+': direct flow URL has touch answers without keyboard');
   const go=async id=>{await page.goto(base+'#math-'+id);await page.locator('.mathlab[data-exercise="'+id+'"]').waitFor();};
+  if(await page.locator('.practice-focused').count())await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();
   await page.locator('#tabs').getByRole('button',{name:'Тренировки',exact:true}).click();
   await page.locator('#tabs').getByRole('button',{name:'Что ценнее?',exact:true}).click();
   await page.locator('.mathlab[data-exercise=material]').waitFor();
@@ -39,11 +40,11 @@ try{
   await page.reload();await page.locator('.mathlab[data-exercise=material]').waitFor();
   check(true,name+': direct material route survives reload');
 
-  const option=async(label,value)=>{if(!await page.locator('.ml-settings').evaluate(el=>el.open))await page.locator('.ml-settings > summary').click();const select=page.getByLabel(label,{exact:true});await select.selectOption(value);};
+  const option=async(label,value)=>{if(await page.locator('.practice-focused').count())await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();if(!await page.locator('.ml-settings').evaluate(el=>el.open))await page.locator('.ml-settings > summary').click();const select=page.getByLabel(label,{exact:true});await select.selectOption(value);};
   const btn=label=>page.locator('.mathlab').getByRole('button',{name:label,exact:true});
   const enter=async(value,label='Ответ')=>{const input=page.getByLabel(label,{exact:true});
    if(await input.evaluate(el=>el.readOnly)){
-    if(value>10){const nums=(await page.locator('.ml-equation').innerText()).match(/\d+/g).map(Number);const builder=await page.locator('.mathlab').getAttribute('data-exercise')==='builder';const correct=builder?nums[0]-nums[1]:10-(nums.find(n=>n!==10)??10);value=correct===0?1:0;}
+    if(value===99){const nums=(await page.locator('.ml-equation').innerText()).match(/\d+/g).map(Number);const builder=await page.locator('.mathlab').getAttribute('data-exercise')==='builder';const correct=builder?nums[0]-nums[1]:10-(nums.find(n=>n!==10)??10);value=correct===0?1:0;}
     await page.locator('.ml-keypad').getByRole('button',{name:String(value),exact:true}).tap();await btn('Проверить').click();
    }else{await input.fill(String(value));await input.press('Enter');}
    await page.locator('.ml-feedback .ml-actions').waitFor();};
@@ -74,7 +75,7 @@ try{
   await go('signs');await option('Заданий в серии','5');await btn('Начать').click();
   check(await page.locator('.ml-sign-tile').count()<=10,name+': signs total capped at ten');
   check(await page.locator('.ml-surface input').count()===0,name+': sign answers need no software keyboard');
-  const chooseSign=async(i,n)=>{const b=page.locator('.ml-sign-answer').nth(i).getByRole('button',{name:String(n),exact:true});if(touch)await b.tap();else await b.click();};
+  const chooseSign=async(i,n)=>{if(await page.locator('.practice-focused').count()){await page.getByRole('button',{name:i===0?'Выбрать плюсы':'Выбрать минусы',exact:true}).click();const b=page.getByRole('group',{name:'Ввод количества знаков'}).getByRole('button',{name:String(n),exact:true});if(touch)await b.tap();else await b.click();}else{const b=page.locator('.ml-sign-answer').nth(i).getByRole('button',{name:String(n),exact:true});if(touch)await b.tap();else await b.click();}};
   for(let i=0;i<5;i++){
    const plus=await page.locator('.ml-sign-plus').count(),minus=await page.locator('.ml-sign-minus').count();
    if(i===0){const mark=page.locator('.ml-sign-tile').first();if(touch)await mark.tap();else await mark.click();check(await mark.getAttribute('aria-pressed')==='true',name+': signs can be marked');}

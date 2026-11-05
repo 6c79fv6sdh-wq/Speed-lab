@@ -374,6 +374,8 @@ export class Board {
    * → доска ужалась ещё».
    */
   private availHeight(): number {
+    const practice=this.wrap.closest<HTMLElement>('.practice-focused');
+    if(practice){const size=parseFloat(practice.style.getPropertyValue('--practice-board'));if(size>0)return size;}
     const h = viewportHeight();
     const reserve = Math.max(BOARD_HEIGHT_RESERVE, stickyTop() + BOARD_AIR);
     return h > 0 ? h - reserve : 0;
@@ -394,6 +396,7 @@ export class Board {
    * посреди упражнения страница не дёргается.
    */
   private ensureVisible(): void {
+    if(this.wrap.closest('.practice-focused'))return;
     if (typeof window.scrollBy !== 'function' || !this.wrap.isConnected) return;
     const r = this.wrap.getBoundingClientRect();
     if (!r.height) return;
@@ -421,6 +424,7 @@ export class Board {
       this.ro = new ResizeObserver(() => this.refit());
     }
     window.addEventListener('resize', this.onViewportChange);
+    window.addEventListener('practice-layout-change', this.onViewportChange);
     window.addEventListener('orientationchange', this.onViewportChange);
   }
 
@@ -610,6 +614,7 @@ export class Board {
     this.ro = null;
     this.observed = null;
     window.removeEventListener('resize', this.onViewportChange);
+    window.removeEventListener('practice-layout-change', this.onViewportChange);
     window.removeEventListener('orientationchange', this.onViewportChange);
     this.unbindGuards.forEach((f) => f());
     this.unbindGuards = [];

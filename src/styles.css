@@ -2433,3 +2433,51 @@ code {
 .settings-page label{font-size:14px}
 .settings-page .seg-btn{font-size:14px;line-height:1.4;padding:10px 12px}
 .settings-page .hint{color:var(--fg);opacity:1}
+
+/* Focused practice keeps the existing exercise DOM and its controls together. */
+.practice-bar{display:flex;justify-content:flex-end;margin:12px 0}
+.practice-focused{position:fixed;inset:0;z-index:70;background:var(--bg);padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));overflow:auto;overscroll-behavior:contain;height:100dvh;box-sizing:border-box}
+.practice-focused.practice-shell,.practice-focused>.practice-shell{display:flex;flex-direction:column;max-width:none;height:100%;margin:0;padding-bottom:0}
+.practice-focused .practice-shell>*:not(.practice-stage):not(.practice-bar),.practice-focused.practice-shell>*:not(.practice-stage):not(.practice-bar){display:none}
+.practice-focused .practice-bar{flex:none;margin:0 0 6px;min-height:44px}
+.practice-focused .practice-bar .btn{min-height:44px;padding:8px 14px}
+.practice-focused .practice-stage{margin:0;flex:1;min-height:0;padding:10px;max-width:none}
+.practice-focused .practice-stage>h2{display:none}
+.practice-focused .board-area{display:grid;grid-template-columns:var(--practice-board) minmax(0,1fr);gap:12px;align-items:start;justify-content:center}
+.practice-focused .board-area:has(.exercise-seg){grid-template-columns:var(--practice-board) minmax(0,1fr)}
+.practice-focused .side .metrics{margin:4px 0;gap:6px}
+.practice-focused .side .metric{padding:8px;min-height:0}
+.practice-focused .side .metric-v{font-size:22px}
+.practice-focused .side .hint{margin:6px 0}
+.practice-focused .sn-board{width:min(100%,var(--practice-board));margin:6px auto}
+.practice-focused .ks-board{width:min(100%,var(--practice-board));margin:6px auto}
+.practice-focused .sn-area>.row{position:sticky;bottom:0;background:var(--panel);padding:6px 0;z-index:2}
+@media(max-width:699px) and (orientation:portrait){
+ .practice-focused .board-area,.practice-focused .board-area:has(.exercise-seg){grid-template-columns:1fr;justify-items:center}
+ .practice-focused .board-area>.side,.practice-focused .board-area:has(.exercise-seg)>.side{grid-column:1;grid-row:auto;width:100%}
+ .practice-focused .side .metrics{display:flex;flex-wrap:nowrap}
+ .practice-focused .side .metric{flex:1}
+ .practice-focused .side .metric-k{font-size:11px;letter-spacing:.03em}
+ .practice-focused .side .metric-v{font-size:18px}
+ .practice-focused .side .hint:not(.metrics-note){display:none}
+ .practice-focused .side .row{margin:4px 0;gap:8px}
+}
+.practice-focused .sn-area:has(.sn-level-button:disabled){display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:6px;max-width:640px;margin:auto;align-items:start}
+.practice-focused .sn-area:has(.sn-level-button:disabled)>.ks-title,.practice-focused .sn-level-picker:has(button:disabled){display:none}
+.practice-focused .sn-area>.prompt{grid-column:1/-1;grid-row:1;margin:2px 0}
+.practice-focused .sn-area>.ks-counter{grid-column:1/-1;grid-row:2;margin:0;font-size:12px}
+.practice-focused .sn-exposure-progress{grid-column:1/-1;grid-row:3;margin:0}
+.practice-focused .sn-board{grid-column:1;grid-row:4;margin:0}
+.practice-focused .sn-panel{grid-column:2;grid-row:4;flex-direction:column;gap:4px;margin:0}
+.practice-focused .sn-feedback-key{grid-column:1/-1;grid-row:5;margin:2px 0;font-size:12px}
+.practice-focused .sn-area>.row{grid-column:1/-1;grid-row:6;margin:0}
+@media(min-width:700px),(orientation:landscape){
+ .practice-focused .sn-area:has(.sn-level-button:disabled){grid-template-columns:var(--practice-board) minmax(200px,1fr);max-width:1100px;gap:8px 16px}
+ .practice-focused .sn-board{grid-column:1;grid-row:1 / span 6}
+ .practice-focused .sn-area>.prompt,.practice-focused .sn-area>.ks-counter,.practice-focused .sn-exposure-progress,.practice-focused .sn-panel,.practice-focused .sn-feedback-key,.practice-focused .sn-area>.row{grid-column:2}
+ .practice-focused .sn-panel{flex-direction:row;flex-wrap:wrap}
+}
+.practice-focused .side .metrics{display:none}
+.practice-focused .practice-stage .btn{min-height:44px}
+@media(max-height:500px) and (orientation:landscape){.practice-focused .ks-area:not(.sn-area) .ks-grid{max-width:min(100%,calc(max(100px,100dvh - 236px)*4 + 36px))}}
+@media(min-width:700px),(orientation:landscape){.practice-focused .board-area,.practice-focused .board-area:has(.exercise-seg){grid-template-columns:minmax(0,max-content) minmax(0,1fr)}}

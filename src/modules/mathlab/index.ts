@@ -201,7 +201,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  }
  function drawSigns(){
   if(!task)return;
-  surface.replaceChildren(el('p',{class:'ml-instruction'},['Сколько здесь плюсов и сколько минусов? Знаки можно отмечать, чтобы не сбиться.']));
+  surface.replaceChildren(el('p',{class:'ml-instruction'},['Посчитай плюсы и минусы.',el('span',{class:'ml-sign-guidance'},[' Знаки можно отмечать, чтобы не сбиться.'])]));
   const board=el('div',{class:'ml-sign-board',role:'group','aria-label':'Поле со знаками'});
   const symbols=signLayout(task.a,task.b);
   for(const symbol of symbols){
@@ -209,7 +209,10 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    const tile=el('button',{type:'button',class:`ml-sign-tile ${symbol==='+'?'ml-sign-plus':'ml-sign-minus'}`,'aria-label':symbol==='+'?'Плюс':'Минус','aria-pressed':'false'},[el('span',{'aria-hidden':'true'},[symbol])]);
    tile.addEventListener('click',()=>{const marked=tile.getAttribute('aria-pressed')!=='true';tile.setAttribute('aria-pressed',String(marked));});board.append(tile);
   }
-  const form=el('form',{class:'ml-sign-form'});const answers:(number|null)[]=[null,null];const groups:HTMLElement[]=[];
+  const form=el('form',{class:'ml-sign-form'});const answers:(number|null)[]=[null,null];const groups:HTMLElement[]=[];let activeSign=0;
+  const sharedKeys=el('div',{class:'ml-keypad ml-sign-shared',role:'group','aria-label':'Ввод количества знаков'});
+  const selectSign=(index:number)=>{activeSign=index;groups.forEach((group,i)=>{group.classList.toggle('ml-sign-active',i===index);group.querySelector('.ml-sign-select')?.setAttribute('aria-pressed',String(i===index));});};
+  const chooseSign=(index:number,value:number)=>{if(phase!=='answer')return;answers[index]=value;const group=groups[index];group.querySelector('output')!.textContent=String(value);group.classList.add('ml-has-answer');group.querySelectorAll<HTMLButtonElement>('.ml-sign-keys button').forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===String(value))));check.disabled=answers.some(v=>v===null);selectSign(index===0?1:0);};
   const check=el('button',{type:'submit',class:'btn ml-primary'},['Проверить']);check.disabled=true;
   for(const [index,title] of ['Плюсы','Минусы'].entries()){
    const output=el('output',{'aria-label':`Количество: ${title.toLowerCase()}`,'aria-live':'polite'},['?']);
@@ -223,15 +226,16 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    const keys=el('div',{class:'ml-sign-keys'});
    for(let value=0;value<=10;value++){
     const key=el('button',{type:'button',class:'btn','aria-pressed':'false'},[String(value)]);
-    key.addEventListener('click',()=>{if(phase!=='answer')return;answers[index]=value;output.textContent=String(value);group.classList.add('ml-has-answer');keys.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===key)));check.disabled=answers.some(v=>v===null);});keys.append(key);
+    key.addEventListener('click',()=>chooseSign(index,value));keys.append(key);
    }
-   group.append(keys);groups.push(group);form.append(group);
+   const select=button(`Выбрать ${title.toLowerCase()}`,()=>selectSign(index),'ml-sign-select');select.setAttribute('aria-pressed',String(index===0));group.append(select,keys);groups.push(group);form.append(group);
   }
-  form.append(check);surface.append(board,form);
+  for(let value=0;value<=10;value++)sharedKeys.append(button(String(value),()=>chooseSign(activeSign,value)));
+  selectSign(0);form.append(sharedKeys,check);surface.append(board,form);
   form.addEventListener('submit',event=>{
    event.preventDefault();if(phase!=='answer'||answers.some(v=>v===null)||!task)return;
    const expected=[task.a,task.b];const correct=answers.every((v,i)=>v===expected[i]);
-   submit(correct,`${answers[0]}, ${answers[1]}`);
+   submit(correct,`${answers[0]}, ${answers[1]}`);form.classList.add('ml-sign-reviewed');
    feedback.querySelector('p')!.textContent=correct?'Верно!':`Плюсов: ${task.a}. Минусов: ${task.b}.`;
    groups.forEach((group,i)=>{group.classList.add(answers[i]===expected[i]?'ml-sign-correct':'ml-sign-wrong');group.append(el('p',{},[answers[i]===expected[i]?'✓ Верно':`× Ответ: ${expected[i]}. У тебя: ${answers[i]}.`]));});
    const counters={'+':0,'−':0};board.querySelectorAll<HTMLButtonElement>('button').forEach(tile=>{const symbol=tile.classList.contains('ml-sign-plus')?'+':'−';counters[symbol]++;tile.append(el('small',{'aria-hidden':'true'},[String(counters[symbol])]));});
@@ -267,20 +271,20 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
   const answer=answerForm((v,text)=>submit(v[0]===task!.answer,text));surface.append(answer.form);
   appendNumberChoices(answer.inputs[0]);
  }
- function appendNumberChoices(input:HTMLInputElement){
+ function appendNumberChoices(input:HTMLInputElement,max=10){
   const touchInput=!!window.matchMedia?.('(any-pointer: coarse)').matches||navigator.maxTouchPoints>0;
   // The on-screen choices are sufficient on touch devices; focusing the display
   // must not summon the software keyboard. Desktop typing remains available.
   input.readOnly=touchInput;
   const pad=el('div',{class:'ml-keypad','aria-label':'Выбери ответ'});
-  for(let n=0;n<=10;n++){
+  for(let n=0;n<=max;n++){
    const choice=button(String(n),()=>{
     if(phase!=='answer')return;
     input.value=String(n);
     pad.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===choice)));
     if(touchInput)input.blur();
    });
-   choice.setAttribute('aria-pressed','false');pad.append(choice);
+   choice.disabled=input.disabled;choice.setAttribute('aria-pressed','false');pad.append(choice);
   }
   surface.append(pad);
  }
@@ -305,7 +309,7 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
  }
  function drawBridge(){
   cleanVisual?.();cleanVisual=null;if(!task||!boxes)return;surface.replaceChildren();
-  const mental=settings.level===3;const full=occupied(boxes.left)===10;
+  const mental=settings.level===3;const full=occupied(boxes.left)===10;surface.classList.add('ml-bridge-surface');surface.classList.toggle('ml-bridge-ready',full);
   surface.append(expression(full&&!mental?`${task.a} + ${task.b} = 10 + ${occupied(boxes.right)}`:`${task.a} + ${task.b} = ?`));
   if(!mental){const host=el('div');surface.append(host);cleanVisual=mountBoxes(host,boxes,next=>{boxes=next;drawBridge();},phase==='answer');
    surface.append(el('div',{class:'ml-actions'},[button('Отменить перемещение',()=>{if(boxes){boxes=undo(boxes);drawBridge();}}),button('Сначала',()=>{if(task){boxes=createBoxes(task.a,task.b);drawBridge();}})]));
@@ -315,12 +319,12 @@ function mountExercise(root:HTMLElement,ctx:AppContext,id:Exercise):Unmount {
    if(!task||!boxes)return;const calc=values.at(-1)===task.whole;const transferComplete=mental?values[0]===10-task.a&&values[1]===task.whole-10:occupied(boxes.left)===10;
    if(!transferComplete&&!mental)return;
    if(settings.mode==='explore'){
-    phase='feedback';feedback.replaceChildren(el('p',{role:'status'},[calc?'Получилось!':`Проверь сумму: 10 + ${task.whole-10} = ${task.whole}.`]),button('Повторить',()=>{phase='answer';boxes=createBoxes(task!.a,task!.b);feedback.replaceChildren();drawBridge();}));if(mental)addBridgeDemo(feedback);return;
+    phase='feedback';surface.querySelectorAll<HTMLInputElement|HTMLButtonElement>('input,button').forEach(control=>control.disabled=true);feedback.replaceChildren(el('p',{role:'status'},[calc?'Получилось!':`Проверь сумму: 10 + ${task.whole-10} = ${task.whole}.`]),button('Повторить',()=>{phase='answer';boxes=createBoxes(task!.a,task!.b);feedback.replaceChildren();drawBridge();}));if(mental)addBridgeDemo(feedback);return;
    }
    submit(calc&&transferComplete,text,{transferComplete,calculationCorrect:calc});
   },mental?['До десятки не хватает','Останется во второй части','Сумма']:['Сумма']);
   if(!mental&&!full){answer.inputs.forEach(i=>{i.disabled=true;});answer.submit.disabled=true;surface.append(el('p',{class:'ml-instruction'},['Сначала собери полную первую коробку.']));}
-  surface.append(answer.form);
+  surface.append(answer.form);if(!mental)appendNumberChoices(answer.inputs[0],18);
  }
  function onVisibility(){
   if(document.hidden&&(phase==='show'||phase==='prepare')){

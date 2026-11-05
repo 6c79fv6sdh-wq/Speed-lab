@@ -1,3 +1,4 @@
+import {attachPracticeView} from './core/practice-view';
 import { initializeMoveSound } from './core/move-sound';
 import './styles.css';
 import { initializeUiTheme } from './theme/manager';
@@ -234,7 +235,9 @@ async function boot(): Promise<void> {
     activeId = id;
     updateNavState(id);
     window.scrollTo({ top: 0 });
-    unmount = mount(view, ctx);
+    const disposeExercise = mount(view, ctx);
+    const disposeLayout = attachPracticeView(view);
+    unmount = () => { disposeLayout(); disposeExercise?.(); };
   };
 
   const show = (id: string) => {
