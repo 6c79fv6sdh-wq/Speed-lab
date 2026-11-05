@@ -68,8 +68,8 @@ export function initializeMoveSound(): void {
   document.addEventListener('click', event => {
     if (!event.isTrusted || !(event.target instanceof Element)) return;
     const target = event.target.closest('button,a[href],summary,[role="button"]');
-    // Pointer-driven exercise boards emit at their accepted-action boundary.
-    if (!target || target.matches('.ks-board') || !usable(target)) return;
+    // Boards and manually marked controls emit at their accepted-action boundary.
+    if (!target || target.matches('.ks-board,[data-action-sound="manual"]') || !usable(target)) return;
     const kind = target instanceof HTMLButtonElement && target.type === 'submit' ? 'answer' : 'choice';
     // Let exercise handlers take their response timestamp before creating audio.
     queueMicrotask(() => playInteractionSound(kind, false));

@@ -1,5 +1,6 @@
 import type {MountFn} from '../../main';
 import {el,button} from '../../core/ui';
+import {initializeMoveSound,playInteractionSound,moveSoundEnabled,setMoveSoundEnabled} from '../../core/move-sound';
 import './styles.css';
 export interface Addition {a:number;b:number}
 export const additionTotal=(task:Addition)=>task.a+task.b;
@@ -30,6 +31,7 @@ export function validFlow(value:unknown):value is StoredFlow{
 }
 const memory=new Map<string,FlowProgress>();
 export const mountAdditionFlow:MountFn=(root,ctx)=>{
+ initializeMoveSound();
  const storageKey=`sciencechess-mathlab:v1:${ctx.profile.id}:addition-flow`;
  let saved:unknown=memory.get(storageKey);try{if(!saved)saved=JSON.parse(localStorage.getItem(storageKey)||'null');}catch{}
  let deck=new AdditionDeck(validFlow(saved)?saved.limit:10);
@@ -46,6 +48,10 @@ export const mountAdditionFlow:MountFn=(root,ctx)=>{
  const equation=el('div',{class:'ml-equation',role:'status','aria-live':'polite'});
  const feedback=el('p',{class:'ml-flow-feedback',role:'status','aria-live':'polite'});
  const pad=el('div',{class:'ml-keypad ml-flow-keypad',role:'group','aria-label':'Выбери сумму'});
+ const sound=button('',()=>{setMoveSoundEnabled(!moveSoundEnabled());renderSound();if(moveSoundEnabled())playInteractionSound('answer',false);});
+ sound.setAttribute('data-action-sound','manual');
+ function renderSound(){sound.textContent=moveSoundEnabled()?'Звук: вкл':'Звук: выкл';sound.setAttribute('aria-label','Звук нажатий');sound.setAttribute('aria-pressed',String(moveSoundEnabled()));}
+ renderSound();
  const stats=el('div',{class:'ml-stats'}),notice=el('p',{class:'ml-muted'});
  function persist(){memory.set(storageKey,{...state,task:{...state.task}});try{localStorage.setItem(storageKey,JSON.stringify(state));}catch{notice.textContent='Прогресс сохраняется только в этой вкладке.';}}
  function renderStats(){const attempted=state.solved+(state.hadError?1:0);stats.replaceChildren(...[['Решено',state.solved],['Точность',attempted?`${Math.round(state.correct/attempted*100)}%`:'—'],['Ошибок',state.errors]].map(([title,value])=>el('div',{class:'ml-stat'},[el('span',{},[String(title)]),el('strong',{},[String(value)])])));}
@@ -64,6 +70,7 @@ export const mountAdditionFlow:MountFn=(root,ctx)=>{
   equation.textContent=`${state.task.a} + ${state.task.b} = ?`;pad.querySelectorAll<HTMLButtonElement>('button').forEach(b=>{b.disabled=state.ended;b.removeAttribute('aria-pressed');});renderStats();}
  function answer(n:number){
   if(disposed||locked)return;
+  playInteractionSound('answer',false);
   if(n!==additionTotal(state.task)){
    state.hadError=true;state.errors++;
    if(state.mode!=='endless'){state.lives--;state.ended=state.lives===0;}
@@ -83,11 +90,11 @@ export const mountAdditionFlow:MountFn=(root,ctx)=>{
   state.task=deck.next(solved);state.hadError=false;persist();renderStats();
   timer=window.setTimeout(()=>{timer=undefined;if(disposed)return;locked=false;feedback.textContent='';show();},350);
  }
- function keypad(){pad.replaceChildren();for(let n=0;n<=state.limit;n++){const b=button(String(n),()=>answer(n));b.dataset.value=String(n);pad.append(b);}}
+ function keypad(){pad.replaceChildren();for(let n=0;n<=state.limit;n++){const b=button(String(n),()=>answer(n));b.dataset.value=String(n);b.setAttribute('data-action-sound','manual');pad.append(b);}}
  function reset(limit:10|20=state.limit,mode:FlowMode=state.mode){if(timer!==undefined)clearTimeout(timer);timer=undefined;locked=false;deck=new AdditionDeck(limit);state={mode,lives:mode==='lives'?3:mode==='survival'?1:0,ended:false,version:1,limit,task:deck.next(),hadError:false,solved:0,correct:0,errors:0};feedback.textContent='';persist();keypad();show();}
  modeSelect.addEventListener('change',()=>reset(state.limit,modeSelect.value as FlowMode));
  settings.addEventListener('change',()=>reset(Number(settings.value) as 10|20));
- page.append(el('a',{href:'#math',class:'ml-back'},['← Математика']),el('h1',{},['Поток сложения']),el('section',{class:'ml-panel'},[el('label',{class:'ml-field'},[el('span',{},['Сложение']),settings]),el('label',{class:'ml-field'},[el('span',{},['Режим']),modeSelect])]),el('section',{class:'ml-panel ml-flow-stage'},[instruction,lives,equation,feedback,result,pad,el('div',{class:'ml-actions'},[button('Начать заново',()=>reset())])]),stats,notice);
+ page.append(el('a',{href:'#math',class:'ml-back'},['← Математика']),el('h1',{},['Поток сложения']),el('section',{class:'ml-panel'},[el('label',{class:'ml-field'},[el('span',{},['Сложение']),settings]),el('label',{class:'ml-field'},[el('span',{},['Режим']),modeSelect])]),el('section',{class:'ml-panel ml-flow-stage'},[instruction,lives,equation,feedback,result,pad,el('div',{class:'ml-actions'},[button('Начать заново',()=>reset()),sound])]),stats,notice);
  root.append(page);keypad();show();
  return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);};
 };
