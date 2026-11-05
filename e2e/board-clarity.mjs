@@ -1,0 +1,15 @@
+import {chromium} from 'playwright';import {spawn} from 'node:child_process';import {setTimeout as pause} from 'node:timers/promises';import {mkdir} from 'node:fs/promises';import assert from 'node:assert/strict';
+const base='http://127.0.0.1:5186/';const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5186','--strictPort'],{stdio:'ignore'});let browser;
+try{for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await pause(100);}browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium'});await mkdir('docs/board-clarity',{recursive:true});
+ for(const [width,height] of [[390,844],[1024,768],[1180,820]]){
+  const page=await browser.newPage({viewport:{width,height},hasTouch:true,isMobile:true});await page.goto(base,{waitUntil:'networkidle'});
+  await page.evaluate(async()=>{const {Board}=await import('/src/board/board.ts');const {INITIAL_FEN,posFromFen,dests}=await import('/src/core/chess.ts');document.body.replaceChildren();const host=document.createElement('main');host.style.padding='16px';document.body.append(host);const area=document.createElement('div');area.className='board-area';const boardHost=document.createElement('div');boardHost.className='board-host';host.append(area);area.append(boardHost);window.board=new Board(boardHost,{orientation:'white',size:720,coordinates:true,inputMode:'both'});window.paint=(side,turn,show=true)=>{const pos=posFromFen(INITIAL_FEN);board.setPosition({fen:INITIAL_FEN,orientation:side,playerColor:show?side:undefined,turnColor:turn,movableColor:side,dests:dests(pos)});};});
+  for(const side of ['white','black']){
+   await page.evaluate(side=>paint(side,side),side);const badge=page.locator('.board-player');assert.ok((await badge.innerText()).includes(side==='white'?'Ты играешь белыми':'Ты играешь чёрными'));
+   await page.evaluate(side=>paint(side,side==='white'?'black':'white'),side);assert.ok((await badge.innerText()).includes(side==='white'?'белыми':'чёрными'),'opponent turn never changes playing side');
+   const labels=page.locator('coords.ranks coord');assert.equal(await labels.count(),8);assert.equal(await page.locator('coords.files coord').count(),8);assert.ok(await labels.first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize))>=14);assert.ok(await labels.first().evaluate(el=>Number(getComputedStyle(el).fontWeight))>=700);
+   const rect=await page.locator('cg-board').boundingBox();assert.ok(Math.abs(rect.width-rect.height)<1);assert.ok(rect.y+rect.height<=height);await page.screenshot({path:`docs/board-clarity/${side}-${width}.png`});
+  }
+  await page.evaluate(()=>paint('white','white',false));assert.ok(!await page.locator('.board-player').isVisible(),'non-playing boards have no false side label');await page.evaluate(()=>board.destroy());assert.equal(await page.locator('.board-player').count(),0);console.log(`${width}x${height}: enlarged coordinates, white/black playing side, opponent turn, hidden label and cleanup passed`);await page.close();
+ }
+}finally{await browser?.close();server.kill('SIGTERM');}

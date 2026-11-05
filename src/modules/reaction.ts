@@ -298,7 +298,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       const after = posFromFen(delta.afterFen);
       board.setPosition({
         fen: delta.afterFen,
-        orientation: delta.userColor,
+        orientation: delta.userColor, playerColor: delta.userColor,
         turnColor: after.turn,
         movableColor: undefined,
         viewOnly: true,
@@ -322,7 +322,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     if (!current) return;
     board.setPosition({
       fen: current.fen,
-      orientation: current.userColor,
+      orientation: current.userColor, playerColor: current.userColor,
       turnColor: current.pos.turn,
       movableColor: undefined,
       viewOnly: true,
@@ -372,7 +372,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       // Сначала показываем позицию ДО хода соперника.
       board.setPosition({
         fen: t.fen,
-        orientation: t.userColor,
+        orientation: t.userColor, playerColor: t.userColor,
         turnColor: t.pos.turn,
         movableColor: undefined,
         viewOnly: true,
@@ -385,7 +385,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
         const after = posFromFen(t.afterFen);
         board.setPosition({
           fen: t.afterFen,
-          orientation: t.userColor,
+          orientation: t.userColor, playerColor: t.userColor,
           turnColor: after.turn,
           movableColor: undefined,
           viewOnly: true,
@@ -434,7 +434,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     current = t;
     board.setPosition({
       fen: t.fen,
-      orientation: t.userColor,
+      orientation: t.userColor, playerColor: t.userColor,
       turnColor: t.pos.turn,
       movableColor: t.userColor,
       dests: dests(t.pos),
@@ -470,7 +470,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       const branch = mateTwo.solution.branches[Math.floor(rnd() * mateTwo.solution.branches.length)];
       const userColor = current.userColor;
       board.setPiecesHidden(false);
-      board.setPosition({ fen: fenOf(after), orientation: userColor, turnColor: after.turn,
+      board.setPosition({ fen: fenOf(after), orientation: userColor, playerColor: userColor, turnColor: after.turn,
         movableColor: userColor, viewOnly: false, dests: new Map(),
         selected: board.api.state.selected, lastMove: [orig, dest], check: checkedColor(after) });
       promptEl.textContent = 'Ход соперника.';
@@ -480,7 +480,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
         mateTwoLine += ` ${branch.replyUci}`;
         mateTwoStage = 'finish';
         current = mateTwoTask(fenOf(after), branch.winningUcis);
-        board.setPosition({ fen: current.fen, orientation: userColor, turnColor: after.turn,
+        board.setPosition({ fen: current.fen, orientation: userColor, playerColor: userColor, turnColor: after.turn,
           movableColor: userColor, viewOnly: false, dests: dests(after), selected: board.api.state.selected,
           lastMove: [branch.replyUci.slice(0, 2) as Key, branch.replyUci.slice(2, 4) as Key], check: checkedColor(after) });
         promptEl.textContent = `Играешь ${userColor === 'white' ? 'белыми' : 'чёрными'}. Поставь мат.`;
@@ -501,7 +501,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       board.setPiecesHidden(false);
       board.setPosition({
         fen: fenOf(after),
-        orientation: current.userColor,
+        orientation: current.userColor, playerColor: current.userColor,
         turnColor: after.turn,
         movableColor: undefined,
         lastMove: [orig, dest],
@@ -512,7 +512,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
       board.setPiecesHidden(false);
       board.setPosition({
         fen: current.fen,
-        orientation: current.userColor,
+        orientation: current.userColor, playerColor: current.userColor,
         turnColor: current.pos.turn,
         movableColor: undefined,
         viewOnly: true,
@@ -546,7 +546,7 @@ export function mountReaction(root: HTMLElement, ctx: AppContext): Unmount {
     const after = posFromFen(delta.afterFen);
     board.setPosition({
       fen: delta.afterFen,
-      orientation: delta.userColor,
+      orientation: delta.userColor, playerColor: delta.userColor,
       turnColor: after.turn,
       movableColor: undefined,
       viewOnly: true,

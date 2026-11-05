@@ -178,6 +178,7 @@ export function mountScramble(root: HTMLElement, ctx: AppContext): Unmount {
     board.setPosition({
       fen: fenOf(pos),
       orientation: userColor,
+      playerColor: userColor,
       turnColor: pos.turn,
       movableColor: running ? userColor : undefined,
       dests: userToMove ? dests(pos) : new Map(),

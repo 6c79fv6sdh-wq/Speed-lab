@@ -204,6 +204,8 @@ export interface BoardOptions {
 }
 
 export interface PositionOptions {
+  /** Explicit playing side, independent of whose turn it is. Omit for non-game boards. */
+  playerColor?: Color;
   fen: string;
   orientation: Color;
   /** Чей ход. Определяет, какие фигуры вообще можно брать. */
@@ -222,6 +224,7 @@ export class Board {
   readonly api: Api;
   readonly wrap: HTMLElement;
   private opts: BoardOptions;
+  private readonly playerBadge: HTMLDivElement;
   private unbindGuards: Array<() => void> = [];
   private readonly host: HTMLElement;
   private rendered: number;
@@ -237,6 +240,12 @@ export class Board {
     this.opts = opts;
     this.host = container;
     container.innerHTML = '';
+    this.playerBadge=document.createElement('div');
+    this.playerBadge.className='board-player';
+    this.playerBadge.hidden=true;
+    this.playerBadge.setAttribute('role','status');
+    this.playerBadge.setAttribute('aria-live','polite');
+    container.append(this.playerBadge);
     this.wrap = document.createElement('div');
     this.wrap.className = 'hl-board';
     container.appendChild(this.wrap);
@@ -346,6 +355,7 @@ export class Board {
   }
 
   private applySize(size: number): void {
+    this.wrap.style.setProperty('--board-coord-size',`${Math.max(14,Math.min(24,Math.round(size/26)))}px`);
     this.wrap.style.width = `${size}px`;
     this.wrap.style.height = `${size}px`;
   }
@@ -375,10 +385,10 @@ export class Board {
    */
   private availHeight(): number {
     const practice=this.wrap.closest<HTMLElement>('.practice-focused');
-    if(practice){const size=parseFloat(practice.style.getPropertyValue('--practice-board'));if(size>0)return size;}
+    if(practice){const size=parseFloat(practice.style.getPropertyValue('--practice-board'));if(size>0)return size-(this.playerBadge.hidden?0:36);}
     const h = viewportHeight();
     const reserve = Math.max(BOARD_HEIGHT_RESERVE, stickyTop() + BOARD_AIR);
-    return h > 0 ? h - reserve : 0;
+    return h > 0 ? h - reserve-(this.playerBadge.hidden?0:36) : 0;
   }
 
   /**
@@ -469,6 +479,15 @@ export class Board {
 
   /** Единственный способ выставить фигуры: из FEN. */
   setPosition(p: PositionOptions): void {
+    const wasHidden=this.playerBadge.hidden;
+    this.playerBadge.hidden=!p.playerColor;
+    if(p.playerColor&&this.playerBadge.dataset.color!==p.playerColor){
+      this.playerBadge.dataset.color=p.playerColor;
+      const icon=document.createElement('span');icon.className='board-player-icon';icon.setAttribute('aria-hidden','true');icon.textContent='♟︎';
+      const text=document.createElement('span');text.textContent=p.playerColor==='white'?'Ты играешь белыми':'Ты играешь чёрными';
+      this.playerBadge.replaceChildren(icon,text);
+    }
+    if(wasHidden!==this.playerBadge.hidden)this.refit();
     const viewOnly = p.viewOnly ?? !!this.opts.viewOnly;
     const wasViewOnly = this.api.state.viewOnly;
     const cfg: Config = {
@@ -620,5 +639,6 @@ export class Board {
     this.unbindGuards = [];
     this.api.destroy();
     this.wrap.remove();
+    this.playerBadge.remove();
   }
 }

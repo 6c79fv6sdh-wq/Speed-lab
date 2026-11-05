@@ -95,6 +95,7 @@ export function mountOpenings(root: HTMLElement, ctx: AppContext): Unmount {
     board.setPosition({
       fen: fenOf(pos),
       orientation: repertoire.userColor,
+      playerColor: repertoire.userColor,
       turnColor: pos.turn,
       movableColor: acceptingUserMove ? repertoire.userColor : undefined,
       dests: acceptingUserMove ? dests(pos) : new Map(),

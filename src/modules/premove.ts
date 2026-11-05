@@ -146,6 +146,7 @@ export function mountPremove(root: HTMLElement, ctx: AppContext): Unmount {
     board.setPosition({
       fen: fenOf(p),
       orientation: task.userColor,
+      playerColor: task.userColor,
       turnColor: p.turn,
       movableColor: task.userColor,
       dests: userToMove ? dests(p) : new Map(),
