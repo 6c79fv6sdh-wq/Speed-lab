@@ -453,6 +453,10 @@ export class Board {
       this.observed = box;
     }
 
+    // A badge, viewport pan or focused layout can move the board without
+    // resizing it. Mouse input uses Chessground's memoized rectangle, so
+    // invalidate its position even when the square's dimensions are unchanged.
+    this.api.state.dom.bounds.clear();
     const next = fitBoardSize(this.opts.size, this.availWidth(), this.availHeight());
     if (next === this.rendered) return;
     this.rendered = next;

@@ -1,0 +1,23 @@
+import {chromium} from 'playwright';import {spawn} from 'node:child_process';import {setTimeout as pause} from 'node:timers/promises';import assert from 'node:assert/strict';
+const base='http://127.0.0.1:5185/';const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5185','--strictPort'],{stdio:'ignore'});let browser;
+try{for(let i=0;i<100;i++){try{if((await fetch(base)).ok)break;}catch{}await pause(100);}browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium'});
+ for(const mode of ['select','both','drag'])for(const touch of [true,false]){
+ const page=await browser.newPage({viewport:{width:1024,height:700},hasTouch:touch,isMobile:touch});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base,{waitUntil:'networkidle'});
+ await page.evaluate(async mode=>{const {Board}=await import('/src/board/board.ts');const {Session}=await import('/src/core/session.ts');const {HANGING_PUZZLES}=await import('/src/data/puzzles-hanging.ts');const {mountReaction}=await import('/src/modules/reaction.ts');const {DEFAULT_CALIBRATION}=await import('/src/core/settings.ts');const {attachPracticeView}=await import('/src/core/practice-view.ts');const photo=HANGING_PUZZLES.find(p=>p.id==='f5SnT');const rest=HANGING_PUZZLES.filter(p=>p!==photo).slice(0,9);HANGING_PUZZLES.splice(0,HANGING_PUZZLES.length,photo,...rest);Math.random=()=>.999999;window.records=[];const record=Session.prototype.record;Session.prototype.record=function(data){if(this.module==='reaction')records.push(data);return record.call(this,data);};const set=Board.prototype.setPosition;Board.prototype.setPosition=function(p){window.board=this;window.position=p;window.solution=HANGING_PUZZLES.find(t=>t.fen===p.fen)?.uci;return set.call(this,p);};document.body.replaceChildren();const root=document.createElement('main');document.body.append(root);window.disposeExercise=mountReaction(root,{profile:{id:'hanging-input',name:'Test'},calibration:{...DEFAULT_CALIBRATION,inputMode:mode}});window.disposeLayout=attachPracticeView(root);},mode);
+ await page.getByRole('button',{name:'Старт',exact:true}).click();
+ for(let i=0;i<8;i++){
+  await page.waitForFunction(()=>!!solution);
+  if(i===4){const fen=await page.evaluate(()=>position.fen);await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();await page.getByRole('button',{name:'Играть на одном экране',exact:true}).click();assert.equal(await page.evaluate(()=>position.fen),fen,'layout switch does not replace current task');}
+  const {uci,orientation}=await page.evaluate(()=>({uci:solution,orientation:position.orientation}));
+  if(i===0)assert.equal(uci,'b2c3','the exact screenshot position is playable');
+  assert.ok((await page.locator('.board-player').innerText()).includes(orientation==='white'?'белыми':'чёрными'));
+  const box=await page.locator('cg-board').boundingBox();const point=sq=>({x:box.x+((orientation==='white'?sq.charCodeAt(0)-97:104-sq.charCodeAt(0))+.5)*box.width/8,y:box.y+((orientation==='white'?8-Number(sq[1]):Number(sq[1])-1)+.5)*box.height/8});const from=point(uci.slice(0,2)),to=point(uci.slice(2,4));
+  if(mode!=='drag'){if(touch){await page.touchscreen.tap(from.x,from.y);await page.touchscreen.tap(to.x,to.y);}else{await page.mouse.click(from.x,from.y);await page.mouse.click(to.x,to.y);}}
+  else if(touch){const cdp=await page.context().newCDPSession(page);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...from,id:1}]});for(let step=1;step<=5;step++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:from.x+(to.x-from.x)*step/5,y:from.y+(to.y-from.y)*step/5,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();}
+  else{await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:6});await page.mouse.up();}
+  try{await page.waitForFunction(n=>records.length===n,i+1,{timeout:1500});}catch(error){console.log(await page.evaluate(()=>({position,solution,selected:board.api.state.selected,viewOnly:board.api.state.viewOnly,turn:board.api.state.turnColor,movable:board.api.state.movable.color,draggable:!!board.api.state.draggable.current,records})));throw error;}
+  assert.equal(await page.evaluate(()=>records.at(-1).correct),true);await page.waitForTimeout(1300);
+ }
+ assert.deepEqual(errors,[]);await page.evaluate(()=>{disposeLayout();disposeExercise();});console.log(`${mode}/${touch?'touch':'mouse'}: eight hanging-piece tasks solved without stalled input`);await page.close();
+ }
+}finally{await browser?.close();server.kill('SIGTERM');}
