@@ -2477,7 +2477,12 @@ code {
  .practice-focused .sn-area>.prompt,.practice-focused .sn-area>.ks-counter,.practice-focused .sn-exposure-progress,.practice-focused .sn-panel,.practice-focused .sn-feedback-key,.practice-focused .sn-area>.row{grid-column:2}
  .practice-focused .sn-panel{flex-direction:row;flex-wrap:wrap}
 }
-.practice-focused .side .metrics{display:none}
+.practice-focused .side .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.practice-focused .side .metric{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;padding:7px 8px;box-shadow:none}
+.practice-focused .side .metric-k{font-size:12px;line-height:1.25;letter-spacing:.02em;opacity:1}
+.practice-focused .side .metric-v{font-size:22px;line-height:1.15}
+@media(max-width:699px) and (orientation:portrait){.practice-focused .side .metric{padding:6px}.practice-focused .side .metric-k{font-size:11px}.practice-focused .side .metric-v{font-size:18px}}
 .practice-focused .practice-stage .btn{min-height:44px}
 @media(max-height:500px) and (orientation:landscape){.practice-focused .ks-area:not(.sn-area) .ks-grid{max-width:min(100%,calc(max(100px,100dvh - 236px)*4 + 36px))}}
 @media(min-width:700px),(orientation:landscape){.practice-focused .board-area,.practice-focused .board-area:has(.exercise-seg){grid-template-columns:minmax(0,max-content) minmax(0,1fr)}}
+.practice-focused .side .prompt{margin:4px 0}

@@ -210,3 +210,9 @@
 .practice-focused .mathlab[data-exercise=material]:has(.ml-feedback .ml-actions) .ml-material-pieces{min-height:36px}
 .practice-focused .mathlab[data-exercise=material]:has(.ml-feedback .ml-actions) .ml-material-piece img{width:32px}
 .practice-focused .mathlab[data-exercise=material]:has(.ml-feedback .ml-actions) .ml-material-comparison{margin:6px 0}
+.practice-focused .mathlab .practice-bar{align-items:center;gap:8px}
+.practice-focused .mathlab .practice-live-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1;gap:6px;max-width:560px}
+.practice-focused .mathlab .practice-live-stats .ml-stat{padding:4px 6px;gap:1px;border-radius:6px;min-width:0}
+.practice-focused .mathlab .practice-live-stats .ml-stat span{font-size:11px;line-height:14px}
+.practice-focused .mathlab .practice-live-stats .ml-stat strong{font-size:18px;line-height:22px}
+.practice-focused .mathlab .practice-bar>.btn{flex-shrink:0}

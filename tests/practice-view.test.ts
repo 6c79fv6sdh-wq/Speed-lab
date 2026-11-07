@@ -17,3 +17,12 @@ it('does not hijack Escape already used to cancel a premove',()=>{
 it('ignores settings previews and auto-opens an already active stream',()=>{
  const settings=document.createElement('main');settings.innerHTML='<div class="settings-page"><section class="panel"><div class="board-area"></div></section></div>';const stop=attachPracticeView(settings);expect(settings.querySelector('.practice-bar')).toBeNull();stop();const flow=document.createElement('main');flow.innerHTML='<div class="mathlab"><section class="ml-flow-stage"></section></div>';document.body.append(flow);const dispose=attachPracticeView(flow);try{expect(flow.classList.contains('practice-focused')).toBe(true);}finally{dispose();flow.remove();}
 });
+it('keeps the stream statistics live in the toolbar and restores the same node outside play',()=>{
+ const root=document.createElement('main');root.innerHTML='<div class="mathlab"><section class="ml-flow-stage"></section><div class="ml-stats"><strong>1</strong></div><p>Notice</p></div>';document.body.append(root);const stats=root.querySelector<HTMLElement>('.ml-stats')!;const dispose=attachPracticeView(root);
+ try{
+  expect(root.querySelector('.practice-bar .ml-stats')).toBe(stats);stats.querySelector('strong')!.textContent='2';
+  root.querySelector<HTMLButtonElement>('.practice-bar button')!.click();expect(stats.parentElement).toBe(root.querySelector('.mathlab'));expect(stats.textContent).toBe('2');
+  root.querySelector<HTMLButtonElement>('.practice-bar button')!.click();expect(root.querySelector('.practice-bar .ml-stats')).toBe(stats);
+  dispose();expect(stats.isConnected).toBe(true);expect(stats.classList.contains('practice-live-stats')).toBe(false);
+ }finally{dispose();root.remove();}
+});

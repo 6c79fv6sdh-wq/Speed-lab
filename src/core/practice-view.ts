@@ -21,6 +21,16 @@ export function attachPracticeView(root:HTMLElement):()=>void {
   toggle.setAttribute('aria-pressed','false');
   const bar=el('div',{class:'practice-bar'},[toggle]);
   shell.insertBefore(bar,stage);
+  // Keep the stream's existing counters live; move the node, never clone data.
+  const liveStats=shell.querySelector<HTMLElement>(':scope > .ml-stats');
+  const statsAnchor=liveStats?document.createComment('practice-live-stats'):null;
+  if(liveStats&&statsAnchor)liveStats.before(statsAnchor);
+  const restoreStats=()=>{
+    if(liveStats&&statsAnchor?.parentNode){
+      statsAnchor.parentNode.insertBefore(liveStats,statsAnchor.nextSibling);
+      liveStats.classList.remove('practice-live-stats');
+    }
+  };
 
   function restoreAttributes(){
     for(const [name,value] of attributes){
@@ -37,7 +47,7 @@ export function attachPracticeView(root:HTMLElement):()=>void {
     root.style.top=`${viewport?.offsetTop??0}px`;
     const width=root.clientWidth;
     const wide=width>=700||width>height*1.25;
-    const reserve=wide?(stage.querySelector('.exercise-seg')?140:100):245;
+    const reserve=wide?(stage.querySelector('.exercise-seg')?140:100):(stage.querySelector('.side .metrics')?336:245);
     const boardSize=Math.max(160,Math.floor(Math.min(wide?width*.57-24:width-24,height-reserve)));
     root.style.setProperty('--practice-board',`${boardSize}px`);
     // Board reads this size using its normal fitting and coordinate machinery.
@@ -51,7 +61,9 @@ export function attachPracticeView(root:HTMLElement):()=>void {
       root.setAttribute('aria-label','Игровой экран');
       root.setAttribute('aria-modal','true');
     }else restoreAttributes();
-    toggle.textContent=value?'← Настройки и разделы':'Играть на одном экране';
+    toggle.textContent=value?(liveStats?'Настройки':'← Настройки и разделы'):'Играть на одном экране';
+    toggle.setAttribute('aria-label',value?'← Настройки и разделы':'Играть на одном экране');
+    if(value&&liveStats){liveStats.classList.add('practice-live-stats');bar.prepend(liveStats);}else restoreStats();
     toggle.setAttribute('aria-pressed',String(value));
     document.body.style.overflow=value?'hidden':previousOverflow;
     document.documentElement.style.overflow=value?'hidden':htmlOverflow;
@@ -96,6 +108,7 @@ export function attachPracticeView(root:HTMLElement):()=>void {
     root.style.removeProperty('--practice-board');
     document.body.style.overflow=previousOverflow;
     document.documentElement.style.overflow=htmlOverflow;restoreViewport();
+    restoreStats();statsAnchor?.remove();
     bar.remove();
     shell.classList.remove('practice-shell');
     stage.classList.remove('practice-stage');
