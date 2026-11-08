@@ -23,8 +23,13 @@ try{
   check(await page.locator('#tabs-primary-scroll .tab-primary').allTextContents().then(labels=>labels.join('|')==='Тренировки|Спарринг|Мои партии|Прогресс'),name+': chess navigation stays grouped in order');
   check(await page.locator('.math-portal').count()===1,name+': one separate MathLab entrance');
   check(await page.locator('.math-portal').evaluate(el=>innerWidth<=650?el.parentElement.id==='tabs'&&el===el.parentElement.lastElementChild:el.previousElementSibling?.id==='tabs-primary-scroll'),name+': MathLab follows chess navigation');
-  await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===7,name+': seven cards through main menu');
+  await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();check(await page.locator('.ml-card').count()===8,name+': eight cards through main menu');
   if(name==='desktop')await page.screenshot({path:`${screenshots}/home-desktop.png`,fullPage:true});
+  await page.getByRole('link',{name:/Поток умножения/}).click();await page.locator('.mathlab[data-exercise=multiplication-flow]').waitFor();
+  check(await page.locator('.ml-flow-keypad button').count()===4,name+': multiplication opens with four touch answers');
+  await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();await page.getByLabel('Сложность',{exact:true}).selectOption('hard');
+  await page.reload();await page.locator('.mathlab[data-exercise=multiplication-flow]').waitFor();check(await page.getByLabel('Сложность',{exact:true}).inputValue()==='hard',name+': multiplication route and difficulty persist');
+  await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();await page.locator('.ml-back').click();await page.locator('.ml-card').first().waitFor();
   await page.getByRole('link',{name:/Флаги мира/}).click();await page.locator('.mathlab[data-exercise=flags]').waitFor();
   await page.locator('.flags-answer:not([disabled])').first().waitFor();check(await page.locator('.flags-answer').count()===4,name+': world flags opens with four answers');
   await page.reload();await page.locator('.flags-answer:not([disabled])').first().waitFor();check(page.url().endsWith('#math-flags'),name+': direct flags URL survives reload');

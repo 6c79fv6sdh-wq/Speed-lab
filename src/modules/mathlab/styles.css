@@ -102,8 +102,8 @@
 .mathlab .ml-flow-result{text-align:center;border:1px solid var(--ml-line);border-radius:12px;padding:18px;margin:16px 0}
 .mathlab .ml-flow-result h2{margin:0}
 .mathlab .ml-flow-stage .ml-flow-result[hidden]{display:none}
-.mathlab[data-exercise=addition-flow]>.ml-panel:first-of-type{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-@media(max-width:430px){.mathlab[data-exercise=addition-flow]>.ml-panel:first-of-type{grid-template-columns:1fr}}
+.mathlab .ml-flow-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media(max-width:430px){.mathlab .ml-flow-settings{grid-template-columns:1fr}}
 /* Compact working area: confirmations stay next to the task. */
 .practice-focused .mathlab .ml-stage,.practice-focused .mathlab .ml-flow-stage{max-width:1100px;width:100%;align-self:center}
 .practice-focused .mathlab .ml-equation{margin:8px 0;font-size:clamp(28px,4vw,40px)}
@@ -216,3 +216,8 @@
 .practice-focused .mathlab .practice-live-stats .ml-stat span{font-size:11px;line-height:14px}
 .practice-focused .mathlab .practice-live-stats .ml-stat strong{font-size:18px;line-height:22px}
 .practice-focused .mathlab .practice-bar>.btn{flex-shrink:0}
+
+.mathlab .ml-flow-keypad.ml-flow-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:520px}
+.mathlab .ml-keypad.ml-flow-choices .btn{min-height:66px;font-size:clamp(24px,4vw,36px);font-weight:650;font-variant-numeric:tabular-nums}
+.mathlab .ml-flow-level{margin:0 0 8px;font-size:14px;line-height:20px;text-align:center}
+@media(max-height:500px) and (orientation:landscape){.mathlab .ml-keypad.ml-flow-choices .btn{min-height:48px;font-size:24px}.mathlab .ml-flow-level{margin:0;font-size:12px;line-height:16px}}

@@ -35,7 +35,7 @@ import { mountReaction } from './modules/reaction';
 import { mountOpenings } from './modules/openings';
 import { mountScramble } from './modules/scramble';
 import { mountData } from './modules/data';
-import {mountAdditionFlow} from './modules/mathlab/addition-flow';
+import {mountAdditionFlow,mountMultiplicationFlow} from './modules/mathlab/addition-flow';
 import { mountMathLab, mathExercise } from './modules/mathlab';
 
 export interface AppContext {
@@ -101,6 +101,7 @@ const SETTINGS_TAB: Tab = { id: 'calibration', label: 'Настройки', moun
 
 const MATH_TABS: Tab[] = [
   {id:'math-flags',label:'Математика',mount:mountFlags},
+  {id:'math-multiplication-flow',label:'Математика',mount:mountMultiplicationFlow},
   {id:'math-addition-flow',label:'Математика',mount:mountAdditionFlow},
   { id: 'math', label: 'Математика', mount: mountMathLab },
   ...(['glance', 'builder', 'friends', 'bridge', 'signs'] as const).map(id => ({ id: `math-${id}`, label: 'Математика', mount: mathExercise(id) })),

@@ -25,7 +25,7 @@ it('works when local storage is blocked and resets safely while transitioning',a
  try{
   root.querySelector<HTMLButtonElement>('[data-value="0"]')!.click();expect(root.textContent).toContain('только в этой вкладке');
   const n=[...root.querySelector('.ml-equation')!.textContent!.matchAll(/\d+/g)].reduce((n,m)=>n+Number(m[0]),0);root.querySelector<HTMLButtonElement>(`[data-value="${n}"]`)!.click();
-  const select=root.querySelector('select')!;select.value='20';select.dispatchEvent(new Event('change'));const text=root.querySelector('.ml-equation')!.textContent;
+  const select=root.querySelector<HTMLSelectElement>('[aria-label="Сложение"]')!;select.value='20';select.dispatchEvent(new Event('change'));const text=root.querySelector('.ml-equation')!.textContent;
   await vi.advanceTimersByTimeAsync(1000);expect(root.querySelector('.ml-equation')!.textContent).toBe(text);expect(root.querySelectorAll('.ml-keypad button')).toHaveLength(21);expect(root.querySelector('.ml-stats')!.textContent).toContain('Решено0');
  }finally{dispose();root.remove();storage.mockRestore();vi.useRealTimers();}
 });
