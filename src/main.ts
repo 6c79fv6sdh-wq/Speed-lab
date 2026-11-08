@@ -1,3 +1,4 @@
+import {mountFlags} from './modules/mathlab/flags';
 import {attachPracticeView} from './core/practice-view';
 import { initializeMoveSound } from './core/move-sound';
 import './styles.css';
@@ -99,6 +100,7 @@ const DATA_TAB: Tab = { id: 'data', label: 'Прогресс', mount: mountData 
 const SETTINGS_TAB: Tab = { id: 'calibration', label: 'Настройки', mount: mountCalibration };
 
 const MATH_TABS: Tab[] = [
+  {id:'math-flags',label:'Математика',mount:mountFlags},
   {id:'math-addition-flow',label:'Математика',mount:mountAdditionFlow},
   { id: 'math', label: 'Математика', mount: mountMathLab },
   ...(['glance', 'builder', 'friends', 'bridge', 'signs'] as const).map(id => ({ id: `math-${id}`, label: 'Математика', mount: mathExercise(id) })),
