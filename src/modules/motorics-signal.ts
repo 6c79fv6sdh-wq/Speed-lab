@@ -36,6 +36,15 @@ export const DEFAULT_SIGNAL_TIMINGS: SignalTimings = {
   targetShare: 0.4,
 };
 
+/** Recovery only suppresses duplicate contacts between stimuli, never extends 700 ms. */
+export const SIGNAL_CONTACT_RECOVERY_MS = 250;
+
+/** DOMHighResTimeStamp on modern browsers, epoch milliseconds on older WebKit. */
+export function signalContactTime(stamp:number,now:number,timeOrigin:number):number {
+ const time=stamp>timeOrigin?stamp-timeOrigin:stamp;
+ return Number.isFinite(time)&&time>0&&time<=now+1?Math.min(time,now):now;
+}
+
 /** Сколько стимулов в сессии. */
 export const SIGNAL_TRIALS = 40;
 

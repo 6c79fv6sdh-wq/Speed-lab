@@ -6,7 +6,7 @@ const base='http://127.0.0.1:5196/';const server=spawn(process.execPath,['node_m
 try{
  let ready=false;for(let i=0;i<100;i++){try{if((await fetch(base)).ok){ready=true;break;}}catch{}await pause(100);}assert.ok(ready,'server');
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH||'/usr/bin/chromium'});
- const context=await browser.newContext({viewport:{width:820,height:1180},hasTouch:true,isMobile:true});const page=await context.newPage();await page.goto(base);
+ const context=await browser.newContext({viewport:{width:820,height:1180},hasTouch:true,isMobile:true});const page=await context.newPage();await page.goto(base,{waitUntil:'networkidle'});
  await page.evaluate(async()=>{
   const {mountMotorics}=await import('/src/modules/motorics.ts');const {DEFAULT_CALIBRATION}=await import('/src/core/settings.ts');
   document.body.replaceChildren();const root=document.createElement('main');root.style.padding='20px';document.body.append(root);

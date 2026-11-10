@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_SIGNAL_TIMINGS,
+  signalContactTime,
   SIGNAL_COLORS,
   TARGET_COLOR,
   accuracy,
@@ -149,5 +150,18 @@ describe('граница окна реакции независимо от за�
  it('время до появления сигнала не может стать отрицательным рекордом',()=>{
   expect(classifyReaction(0,'green',1000,999).outcome).toBe('falseStart');
   expect(reactionTimes([classifyReaction(0,'green',1000,999)])).toEqual([]);
+ });
+});
+
+describe('contact timestamps',()=>{
+ it('uses contact time instead of late handler time, including epoch WebKit stamps',()=>{
+  const origin=1700000000000;
+  expect(signalContactTime(650,750,origin)).toBe(650);
+  expect(signalContactTime(origin+650,750,origin)).toBe(650);
+  expect(classifyReaction(0,'green',0,signalContactTime(650,750,origin)).outcome).toBe('hit');
+  expect(classifyReaction(0,'green',0,signalContactTime(750,750,origin)).outcome).toBe('miss');
+ });
+ it('falls back safely for invalid and future timestamps',()=>{
+  for(const stamp of [NaN,Infinity,-1,0,900])expect(signalContactTime(stamp,750,1700000000000)).toBe(750);
  });
 });

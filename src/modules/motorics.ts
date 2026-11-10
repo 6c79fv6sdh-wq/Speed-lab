@@ -19,6 +19,8 @@ import {
 import {
   DEFAULT_SIGNAL_TIMINGS,
   SIGNAL_TRIALS,
+  SIGNAL_CONTACT_RECOVERY_MS,
+  signalContactTime,
   accuracy as signalAccuracy,
   classifyReaction,
   classifyTimeout,
@@ -584,7 +586,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
    * ---------------------------------------------------------------------
    */
 
-  type SignalPhase = 'idle' | 'waiting' | 'active' | 'done';
+  type SignalPhase = 'idle' | 'waiting' | 'presenting' | 'active' | 'paused' | 'done';
 
   let sigPhase: SignalPhase = 'idle';
   let sigSession: Session | null = null;
@@ -596,6 +598,8 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   let sigShownAt = 0;
   let sigResolved = false;
   let sigTimer: number | null = null;
+  let sigFrame:number|null=null;
+  let sigAcceptAfter=-Infinity;
   let sigPriorBestMs: number | null = null;
 
   const sigPromptEl = el('div', { class: 'prompt' }, ['Нажми «Старт».']);
@@ -615,6 +619,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function sigClearTimer(): void {
+    if(sigFrame!==null){cancelAnimationFrame(sigFrame);sigFrame=null;}
     if (sigTimer !== null) {
       window.clearTimeout(sigTimer);
       sigTimer = null;
@@ -646,6 +651,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
 
   function sigRecordTrial(result: TrialResult): void {
     sigTrials.push(result);
+    sigPromptEl.textContent={hit:'Верно!',miss:'Не успел: зелёный пропущен.',falseAlarm:'Другой цвет: нажимай только на зелёный.',falseStart:'Рано: дождись зелёного сигнала.',correctIgnore:'Верно: этот цвет пропускаем.'}[result.outcome];
     sigStreak = result.outcome === 'hit' || result.outcome === 'correctIgnore' ? sigStreak + 1 : 0;
     void sigSession?.record({
       signal: result.color,
@@ -660,8 +666,9 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function sigScheduleNext(gapMs: number): void {
-    sigPhase = 'waiting';
     sigClearTimer();
+    if(document.hidden){sigPhase='paused';sigPromptEl.textContent='Пауза: вернись к упражнению.';return;}
+    sigPhase = 'waiting';
     sigTimer = window.setTimeout(() => sigShowStimulus(), gapMs);
   }
 
@@ -672,16 +679,25 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       return;
     }
     const stim = sigNext;
-    sigCurrent = stim;
-    // Следующий стимул — сразу же, чтобы его появление никогда не ждало
-    // генерации в момент показа текущего.
-    sigNext = planNextStimulus(DEFAULT_SIGNAL_TIMINGS, rnd);
-    sigResolved = false;
-    sigPhase = 'active';
-    sigShownAt = performance.now();
-    flashSignal(stim.color, DEFAULT_SIGNAL_TIMINGS.showMs);
-    sigClearTimer();
-    sigTimer = window.setTimeout(() => sigResolveTimeout(), DEFAULT_SIGNAL_TIMINGS.reactionWindowMs);
+    sigPhase='presenting';
+    // Start the visual and its clock together on a rendering opportunity.
+    sigFrame=requestAnimationFrame(()=>{
+      sigFrame=null;
+      if(disposed||sigPhase!=='presenting')return;
+      sigCurrent=stim;
+      sigNext=planNextStimulus(DEFAULT_SIGNAL_TIMINGS,rnd);
+      sigResolved=false;
+      flashSignal(stim.color,DEFAULT_SIGNAL_TIMINGS.showMs);
+      sigShownAt=performance.now();
+      sigPhase='active';
+      sigPromptEl.textContent='Нажимай только на зелёный.';
+      sigTimer=window.setTimeout(()=>{
+        sigTimer=null;
+        // Give queued input its browser input-processing step before committing
+        // a timeout. Contact timestamps still enforce the original deadline.
+        sigFrame=requestAnimationFrame(()=>{sigFrame=null;sigResolveTimeout();});
+      },DEFAULT_SIGNAL_TIMINGS.reactionWindowMs);
+    });
   }
 
   function sigResolveTimeout(): void {
@@ -692,6 +708,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   }
 
   function sigAdvance(): void {
+    sigAcceptAfter=performance.now()+SIGNAL_CONTACT_RECOVERY_MS;
     hideSignal();
     sigTrialIndex++;
     sigCurrent = null;
@@ -705,8 +722,11 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
 
   function onSignalPointerDown(e: PointerEvent): void {
     if (exercise !== 'signal' || e.isPrimary === false || e.button !== 0) return;
-    const t = performance.now();
-    if (sigPhase === 'waiting') {
+    const now=performance.now();
+    const t=signalContactTime(e.timeStamp,now,performance.timeOrigin);
+    if (sigPhase === 'waiting' || sigPhase === 'presenting') {
+      if(t<sigAcceptAfter)return;
+      sigAcceptAfter=now+SIGNAL_CONTACT_RECOVERY_MS;
       playInteractionSound('answer', false);
       // Клик до появления стимула — фальстарт. Расписание не трогаем:
       // уже подготовленный следующий стимул выходит по плану.
@@ -715,12 +735,33 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       return;
     }
     if (sigPhase !== 'active' || sigResolved || !sigCurrent) return;
+    if(t<sigShownAt){
+      // A queued pre-stimulus contact must not consume the newly drawn signal.
+      if(t>=sigAcceptAfter){sigAcceptAfter=now+SIGNAL_CONTACT_RECOVERY_MS;sigRecordTrial(signalFalseStart(sigTrialIndex));sigRenderLive();}
+      return;
+    }
     playInteractionSound('answer', false);
     sigResolved = true;
     sigClearTimer();
     sigRecordTrial(classifyReaction(sigTrialIndex, sigCurrent.color, sigShownAt, t));
     sigAdvance();
   }
+
+  function onSignalVisibility():void {
+    if(exercise!=='signal'||!sigSession)return;
+    if(document.hidden){
+      if(sigPhase==='waiting'||sigPhase==='presenting'||sigPhase==='active'){
+        sigClearTimer();hideSignal();
+        if(sigCurrent)sigNext=sigCurrent;
+        sigCurrent=null;sigPhase='paused';
+        sigPromptEl.textContent='Пауза: вернись к упражнению.';
+      }
+    }else if(sigPhase==='paused'){
+      sigPromptEl.textContent='Жди сигнал.';
+      sigScheduleNext(DEFAULT_SIGNAL_TIMINGS.minGapMs);
+    }
+  }
+  document.addEventListener('visibilitychange',onSignalVisibility);
 
   function sigRenderSummary(): void {
     sigResultsHost.innerHTML = '';
@@ -746,6 +787,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
 
   async function sigFinish(): Promise<void> {
     sigPhase = 'done';
+    sigCurrent=null;sigNext=null;sigResolved=true;
     sigClearTimer();
     hideSignal();
     sigPromptEl.textContent = 'Сессия закончена. Результат записан.';
@@ -779,6 +821,8 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     sigStartBtn.disabled = true;
     void (async () => {
       sigTrials = [];
+      sigAcceptAfter=-Infinity;
+      sigCurrent=null;sigNext=null;sigResolved=false;sigPhase='idle';
       sigTrialIndex = 0;
       sigStreak = 0;
       sigResultsHost.innerHTML = '';
@@ -1377,6 +1421,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     board.wrap.removeEventListener('pointermove', onPointerMove);
     board.wrap.removeEventListener('pointerdown', onPointerDown);
     boardHost.removeEventListener('pointerdown', onSignalPointerDown, true);
+    document.removeEventListener('visibilitychange',onSignalVisibility);
     board.wrap.removeEventListener('pointerdown', onRoutePointerDown);
     board.wrap.removeEventListener('pointerup', onRoutePointerUp);
     sigClearTimer();
