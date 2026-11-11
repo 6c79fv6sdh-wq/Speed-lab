@@ -34,6 +34,9 @@ try{
   await page.locator('.flags-answer:not([disabled])').first().waitFor();check(await page.locator('.flags-answer').count()===4,name+': world flags opens with four answers');
   await page.reload();await page.locator('.flags-answer:not([disabled])').first().waitFor();check(page.url().endsWith('#math-flags'),name+': direct flags URL survives reload');
   await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();await page.locator('.ml-back').click();await page.locator('.ml-card').first().waitFor();
+  await page.goto(base+'#path-planner');await page.locator('.pp-grid').waitFor();check(await page.locator('.pp-cell').count()===25,name+': planner direct route opens in training');
+  await page.getByRole('button',{name:'Начать маршрут',exact:true}).click();await page.getByRole('button',{name:'Подсказка',exact:true}).click();await page.locator('.pp-hint').click();check((await page.locator('.pp-message').innerText()).includes('Поле изменилось'),name+': planner applies a solvable first-move map change');
+  await page.getByRole('button',{name:'← Настройки и разделы',exact:true}).click();await page.locator('#tabs').getByRole('button',{name:'Математика',exact:true}).click();await page.locator('.ml-card').first().waitFor();
   if(process.env.FLAGS_ONLY){check(errors.length===0,name+': flags has no browser errors');await context.close();continue;}
   await page.getByRole('link',{name:/Поток сложения/}).click();await page.locator('.mathlab[data-exercise=addition-flow]').waitFor();
   check(page.url().endsWith('#math-addition-flow'),name+': continuous addition opens from its card');

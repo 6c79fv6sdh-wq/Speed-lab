@@ -1,3 +1,4 @@
+import {mountPathPlanner} from './modules/path-planner';
 import {mountFlags} from './modules/mathlab/flags';
 import {attachPracticeView} from './core/practice-view';
 import { initializeMoveSound } from './core/move-sound';
@@ -80,6 +81,7 @@ const TRAINING_TABS: Tab[] = [
   { id: 'premove', label: 'Премувы', mount: mountPremove },
   { id: 'reaction', label: 'Тактика', mount: mountReaction },
   { id: 'material', label: 'Что ценнее?', mount: mathExercise('material') },
+  { id:'path-planner',label:'План маршрута',mount:mountPathPlanner },
   { id: 'openings', label: 'Дебюты', mount: mountOpenings },
 ];
 

@@ -46,6 +46,11 @@ export function arithmeticChoices(task:Addition,operation:FlowOperation,random:(
  for(let n=0;choices.size<4;n++)choices.add(n);
  const values=[...choices];for(let i=values.length-1;i>0;i--){const j=Math.min(i,Math.floor(random()*(i+1)));[values[i],values[j]]=[values[j],values[i]];}return values;
 }
+export function answerNumbers(limit:number,mixed:boolean,random:()=>number=Math.random):number[]{
+ const values=Array.from({length:limit+1},(_,n)=>n);
+ if(mixed){for(let i=values.length-1;i>0;i--){const j=Math.min(i,Math.floor(random()*(i+1)));[values[i],values[j]]=[values[j],values[i]];}if(values.every((v,i)=>v===i))values.push(values.shift()!);}
+ return values;
+}
 export type FlowMode='endless'|'survival'|'lives';
 export interface FlowProgress {mode:FlowMode;lives:number;ended:boolean;version:1;limit:FlowLimit;task:Addition;hadError:boolean;solved:number;correct:number;errors:number}
 type StoredFlow=Omit<FlowProgress,'mode'|'lives'|'ended'> & Partial<Pick<FlowProgress,'mode'|'lives'|'ended'>>;
@@ -72,17 +77,21 @@ function arithmeticFlow(operation:FlowOperation):MountFn{return(root,ctx)=>{
  const valid=(value:unknown)=>validFlow(value,operation);
  initializeMoveSound();
  const storageKey=`sciencechess-mathlab:v1:${ctx.profile.id}:${id}`;
+ let mixed=false;try{mixed=localStorage.getItem(storageKey+':answer-order')==='mixed';}catch{}
  let saved:unknown=memory.get(storageKey);try{if(!saved)saved=JSON.parse(localStorage.getItem(storageKey)||'null');}catch{}
  let deck=createDeck(valid(saved)?saved.limit:10);
  let state:FlowProgress=valid(saved)?{...saved,mode:saved.mode??'endless',lives:saved.lives??0,ended:saved.ended??false,task:{...saved.task}}:{mode:'endless',lives:0,ended:false,version:1,limit:10,task:deck.next(),hadError:false,solved:0,correct:0,errors:0};
- let timer:number|undefined,locked=false,disposed=false;
+ let timer:number|undefined,locked=false,disposed=false,priorOrder='';
  const page=el('div',{class:'mathlab','data-exercise':id});
  const settings=el('select',{'aria-label':'Сложение'});
  const difficulty=el('select',{'aria-label':'Сложность'});
  for(const [value,label] of [['easy','Простой'],['hard','Сложный']]){const option=el('option',{value},[label]);option.selected=(state.limit===100?'hard':'easy')===value;difficulty.append(option);}
  const levelNote=el('p',{class:'ml-muted ml-flow-level'});
- function renderLevel(){difficulty.value=state.limit===100?'hard':'easy';settingsLabel.hidden=multiplication||state.limit===100;levelNote.textContent=multiplication?(state.limit===100?'Двузначное число × число от 2 до 9':'Таблица умножения от 1 до 10'):(state.limit===100?'Двузначные слагаемые · сумма до 100':`Сумма до ${state.limit}`);}
+ function renderLevel(){difficulty.value=state.limit===100?'hard':'easy';settingsLabel.hidden=multiplication||state.limit===100;orderLabel.hidden=multiplication||state.limit===100;levelNote.textContent=multiplication?(state.limit===100?'Двузначное число × число от 2 до 9':'Таблица умножения от 1 до 10'):(state.limit===100?'Двузначные слагаемые · сумма до 100':`Сумма до ${state.limit}${mixed?' · Ответы вперемешку':''}`);}
  for(const limit of [10,20]){const option=el('option',{value:String(limit)},[`Сумма до ${limit}`]);option.selected=limit===state.limit;settings.append(option);}
+ const orderSelect=el('select',{'aria-label':'Порядок ответов'});
+ for(const [value,label] of [['ordered','По порядку'],['mixed','Вперемешку']]){const option=el('option',{value},[label]);option.selected=(mixed?'mixed':'ordered')===value;orderSelect.append(option);}
+ orderSelect.addEventListener('change',()=>{mixed=orderSelect.value==='mixed';try{localStorage.setItem(storageKey+':answer-order',mixed?'mixed':'ordered');}catch{notice.textContent='Настройка действует только в этой вкладке.';}renderLevel();keypad();});
  const modeSelect=el('select',{'aria-label':'Режим'});
  for(const [value,label] of [['endless','Бесконечный'],['survival','До первой ошибки'],['lives','Три жизни']]){const option=el('option',{value},[label]);option.selected=value===state.mode;modeSelect.append(option);}
  const lives=el('div',{class:'ml-flow-lives',role:'img'});
@@ -136,15 +145,17 @@ function arithmeticFlow(operation:FlowOperation):MountFn{return(root,ctx)=>{
  function keypad(){
   pad.replaceChildren();const choices=multiplication||state.limit===100;
   pad.classList.toggle('ml-flow-choices',choices);
-  const values=choices?arithmeticChoices(state.task,operation):Array.from({length:state.limit+1},(_,n)=>n);
-  for(const n of values){const b=button(String(n),()=>answer(n));b.dataset.value=String(n);b.setAttribute('data-action-sound','manual');pad.append(b);}
+  const values=choices?arithmeticChoices(state.task,operation):answerNumbers(state.limit,mixed);
+  if(mixed&&!choices){while(values.join(',')===priorOrder||values.every((v,i)=>v===i))values.push(values.shift()!);priorOrder=values.join(',');}
+  for(const n of values){const b=button(String(n),()=>answer(n));b.dataset.value=String(n);b.disabled=locked||state.ended;b.setAttribute('data-action-sound','manual');pad.append(b);}
  }
  function reset(limit:FlowLimit=state.limit,mode:FlowMode=state.mode){if(timer!==undefined)clearTimeout(timer);timer=undefined;locked=false;deck=createDeck(limit);state={mode,lives:mode==='lives'?3:mode==='survival'?1:0,ended:false,version:1,limit,task:deck.next(),hadError:false,solved:0,correct:0,errors:0};feedback.textContent='';persist();renderLevel();keypad();show();}
  difficulty.addEventListener('change',()=>reset(difficulty.value==='hard'?100:multiplication?10:Number(settings.value) as 10|20));
  modeSelect.addEventListener('change',()=>reset(state.limit,modeSelect.value as FlowMode));
  settings.addEventListener('change',()=>reset(Number(settings.value) as 10|20));
+ const orderLabel=el('label',{class:'ml-field'},[el('span',{},['Порядок ответов']),orderSelect]);
  const settingsLabel=el('label',{class:'ml-field'},[el('span',{},['Сложение']),settings]);
- page.append(el('a',{href:'#math',class:'ml-back'},['← Математика']),el('h1',{},[title]),el('section',{class:'ml-panel ml-flow-settings'},[el('label',{class:'ml-field'},[el('span',{},['Сложность']),difficulty]),settingsLabel,el('label',{class:'ml-field'},[el('span',{},['Режим']),modeSelect])]),el('section',{class:'ml-panel ml-flow-stage'},[levelNote,instruction,lives,equation,feedback,result,pad,el('div',{class:'ml-actions'},[button('Начать заново',()=>reset()),sound])]),stats,notice);
+ page.append(el('a',{href:'#math',class:'ml-back'},['← Математика']),el('h1',{},[title]),el('section',{class:'ml-panel ml-flow-settings'},[el('label',{class:'ml-field'},[el('span',{},['Сложность']),difficulty]),settingsLabel,orderLabel,el('label',{class:'ml-field'},[el('span',{},['Режим']),modeSelect])]),el('section',{class:'ml-panel ml-flow-stage'},[levelNote,instruction,lives,equation,feedback,result,pad,el('div',{class:'ml-actions'},[button('Начать заново',()=>reset()),sound])]),stats,notice);
  root.append(page);renderLevel();keypad();show();
  return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);};
 };}

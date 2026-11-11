@@ -1,5 +1,5 @@
 import {it,expect,vi} from 'vitest';
-import {AdditionDeck,additionTotal,validFlow,mountAdditionFlow} from '../src/modules/mathlab/addition-flow';
+import {AdditionDeck,additionTotal,validFlow,mountAdditionFlow,answerNumbers} from '../src/modules/mathlab/addition-flow';
 import type {AppContext} from '../src/main';
 it('streams small additions forever without immediate reversals or repeating within a deck',()=>{
  for(const limit of [10,20] as const){let seed=7;const deck=new AdditionDeck(limit,()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296));let previous;const seen=new Set();const count=limit===10?25:100;
@@ -60,4 +60,14 @@ it('preserves legacy endless progress and rejects inconsistent life snapshots',(
  const root=document.createElement('main');const dispose=mountAdditionFlow(root,{profile:{id}} as AppContext);
  try{expect(root.querySelector('.ml-stats')!.textContent).toContain('Решено7');expect(root.querySelector<HTMLSelectElement>('[aria-label="Режим"]')!.value).toBe('endless');}finally{dispose();}
  expect(validFlow({...old,mode:'lives',lives:0,ended:false})).toBe(false);expect(validFlow({...old,mode:'lives',lives:-1,ended:true})).toBe(false);expect(validFlow({...old,mode:'survival',lives:3,ended:false})).toBe(false);expect(validFlow({...old,mode:'lives',lives:0,ended:true})).toBe(true);
+});
+
+it('mixed numbers preserve every answer once, never reveal numeric order and keep lives/progress',async()=>{
+ for(const limit of [10,20])for(const random of [()=>0,()=>.5,()=>.999999]){const values=answerNumbers(limit,true,random);expect(new Set(values).size).toBe(limit+1);expect([...values].sort((a,b)=>a-b)).toEqual(answerNumbers(limit,false));expect(values).not.toEqual(answerNumbers(limit,false));}
+ vi.useFakeTimers();const id='mixed-addition',ctx={profile:{id}} as AppContext,root=document.createElement('main');let dispose=mountAdditionFlow(root,ctx);
+ const set=(label:string,value:string)=>{const select=root.querySelector<HTMLSelectElement>(`[aria-label="${label}"]`)!;select.value=value;select.dispatchEvent(new Event('change'));};
+ const numbers=()=>[...root.querySelectorAll<HTMLButtonElement>('.ml-keypad button')].map(b=>Number(b.dataset.value));
+ try{set('Режим','lives');root.querySelector<HTMLButtonElement>('[data-value="0"]')!.click();await vi.advanceTimersByTimeAsync(350);const before=root.querySelector('.ml-stats')!.textContent;set('Порядок ответов','mixed');expect(root.querySelector('.ml-stats')!.textContent).toBe(before);expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(2);const order=numbers();expect(order).not.toEqual(answerNumbers(10,false));
+ const sum=[...root.querySelector('.ml-equation')!.textContent!.matchAll(/\d+/g)].reduce((n,m)=>n+Number(m[0]),0);root.querySelector<HTMLButtonElement>(`[data-value="${sum}"]`)!.click();await vi.advanceTimersByTimeAsync(350);expect(numbers()).not.toEqual(order);dispose();root.replaceChildren();dispose=mountAdditionFlow(root,ctx);expect(root.querySelector<HTMLSelectElement>('[aria-label="Порядок ответов"]')!.value).toBe('mixed');expect(root.querySelector('.ml-stats')!.textContent).toContain('Решено1');expect(root.querySelectorAll('.ml-flow-heart')).toHaveLength(2);
+ }finally{dispose();vi.useRealTimers();}
 });

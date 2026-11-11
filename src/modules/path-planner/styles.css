@@ -1,0 +1,37 @@
+.mathlab[data-exercise=path-planner]{--ml-teal-soft:#163b36}
+.mathlab .pp-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px}
+.mathlab .ml-stage.pp-stage{width:100%;padding:14px;box-sizing:border-box}
+.pp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:center}
+.pp-grid{display:grid;grid-template-columns:repeat(var(--pp-size),minmax(0,1fr));gap:5px;aspect-ratio:1;width:min(100%,440px,calc(100dvh - 100px));margin:auto}
+.mathlab .btn.pp-cell{position:relative;min-height:0;min-width:0;aspect-ratio:1;padding:0;border-radius:9px;background:var(--well);border:1px solid var(--ml-line);font-size:clamp(22px,4vw,36px);line-height:1;touch-action:manipulation;display:flex;align-items:center;justify-content:center}
+.mathlab .pp-cell.pp-wall{background:repeating-linear-gradient(135deg,var(--well),var(--well) 5px,var(--panel) 5px,var(--panel) 10px);color:var(--muted);border-style:dashed}
+.mathlab .pp-cell.pp-legal{border-color:var(--ml-teal);background:var(--ml-teal-soft)}
+.mathlab .pp-cell.pp-current{border:2px solid var(--ml-teal);background:var(--ml-teal-soft)}
+.mathlab .pp-cell.pp-hint{outline:3px solid var(--ml-amber);outline-offset:-4px}
+.pp-cell img{width:80%;height:80%;object-fit:contain;pointer-events:none}
+.pp-person{color:var(--ml-teal);text-shadow:0 0 1px var(--fg)}
+.pp-goal,.pp-waypoint{color:var(--ml-amber);font-weight:750}
+.pp-passed,.pp-dot{color:var(--ml-teal)}
+.pp-side{min-width:0;display:flex;flex-direction:column;gap:16px}
+.mathlab .pp-rule{margin:0;font-size:16px;line-height:1.4;color:var(--fg-strong)}
+.mathlab .pp-message{margin:0;min-height:48px;font-size:17px;line-height:24px}
+.pp-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pp-actions .btn{min-height:44px;white-space:normal;line-height:1.25}
+@media(max-width:699px) and (orientation:portrait){
+ .pp-layout{grid-template-columns:1fr;gap:12px}
+ .pp-grid{width:min(100%,440px,calc(100dvh - 290px))}
+ .pp-side{gap:8px}
+ .mathlab .pp-rule{font-size:14px;line-height:20px}
+ .mathlab .pp-message{font-size:15px;line-height:20px;min-height:40px}
+ .mathlab .ml-stage.pp-stage{padding:10px}
+}
+@media(max-height:500px) and (orientation:landscape){.mathlab .ml-stage.pp-stage{padding:8px}.pp-layout{gap:16px}.pp-grid{gap:4px;width:min(100%,calc(100dvh - 92px))}.pp-side{gap:10px}.mathlab .pp-rule{font-size:14px}.mathlab .pp-message{font-size:15px;line-height:21px}}
+
+.practice-focused .mathlab .btn.pp-cell{min-height:0}
+@media(max-width:360px) and (orientation:portrait){.pp-grid{gap:2px}}
+
+.mathlab .pp-actions .btn{padding:8px 6px;font-size:15px;min-height:44px}
+@media(max-height:650px) and (orientation:portrait){.pp-grid{width:min(100%,calc(100dvh - 310px))}}
+
+.mathlab .pp-cell.pp-changed{border-color:var(--ml-amber);box-shadow:inset 0 0 0 1px var(--ml-amber)}
+.pp-finish-star{position:absolute;right:2px;top:2px;color:var(--ml-amber);font-size:14px}
