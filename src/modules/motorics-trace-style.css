@@ -1,0 +1,21 @@
+.trace-style-control{display:flex;align-items:center;gap:10px;min-height:44px;color:var(--fg);font-size:14px}
+.trace-style-control select{flex:1;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:8px;background:var(--well);color:var(--fg-strong);font:inherit;padding:6px 10px}
+.hl-trace-ice,.hl-trace-wind{display:none;pointer-events:none}
+.hl-trace[data-style=ice] .hl-trace-flame,.hl-trace[data-style=ice] .hl-trace-spark,.hl-trace[data-style=wind] .hl-trace-flame,.hl-trace[data-style=wind] .hl-trace-spark{display:none;animation:none}
+.hl-trace[data-style=ice] .hl-trace-line[points]{stroke:#edffff;stroke-width:1.8;filter:drop-shadow(0 0 1px #287eaf);animation:none}
+.hl-trace[data-style=ice] .hl-trace-ember[points]{stroke:#67d7f1;stroke-width:5;opacity:.6;filter:drop-shadow(0 0 2px #2779a8);animation:none}
+.hl-trace[data-style=ice] .hl-trace-fire{filter:drop-shadow(0 1px 1px #236b92)}
+.hl-trace[data-style=ice] .hl-trace-ice{display:block;fill:#9deafa;stroke:#efffff;stroke-width:.9;animation:trace-ice-shimmer 2.1s ease-in-out infinite}
+.hl-trace-ice path+path{fill:none;stroke:#eaffff;stroke-width:1.1}
+.hl-trace[data-style=wind] .hl-trace-line[points]{stroke:#f0faf7;stroke-width:1.7;stroke-dasharray:14 7 3 7;filter:drop-shadow(0 1px 1px #36696c);animation:trace-wind-flow 1.8s linear infinite}
+.hl-trace[data-style=wind] .hl-trace-ember[points]{stroke:#9ec9c4;stroke-width:5;opacity:.45;filter:none;animation:none}
+.hl-trace[data-style=wind] .hl-trace-fire{filter:drop-shadow(0 1px 1px #3e7175)}
+.hl-trace[data-style=wind] .hl-trace-wind{display:block;fill:none;stroke:#efffff;stroke-width:1.25;stroke-linecap:round;opacity:.8;animation:trace-wind-breathe 2.4s ease-in-out infinite}
+@keyframes trace-ice-shimmer{0%,100%{opacity:.65}50%{opacity:1}}
+@keyframes trace-wind-flow{to{stroke-dashoffset:-62}}
+@keyframes trace-wind-breathe{0%,100%{opacity:.5}50%{opacity:.9}}
+@media(prefers-reduced-motion:reduce){.hl-trace[data-style] .hl-trace-line[points],.hl-trace[data-style] .hl-trace-ember[points],.hl-trace[data-style] .hl-trace-ice,.hl-trace[data-style] .hl-trace-wind{animation:none}}
+
+.trace-actions.row{display:grid;grid-template-columns:auto auto minmax(90px,1fr);gap:6px;align-items:center}
+.trace-actions .btn{padding-inline:10px}
+@media(max-width:699px) and (orientation:portrait){.trace-style-control>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.trace-style-control{gap:0}.trace-style-control select{padding-inline:5px;font-size:13px}}

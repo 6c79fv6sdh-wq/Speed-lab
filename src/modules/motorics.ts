@@ -1,3 +1,5 @@
+import {TRACE_STYLES,TRACE_DECORATIONS,traceStyle,type TraceStyle} from './motorics-trace-style';
+import './motorics-trace-style.css';
 import { playInteractionSound } from '../core/move-sound';
 import type { Key } from 'chessground/types';
 import type { AppContext, Unmount } from '../main';
@@ -176,6 +178,9 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
   const trace = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   trace.setAttribute('class', 'hl-trace');
   trace.setAttribute('aria-hidden', 'true');
+  const traceStyleKey=`sciencechess-trace-style:v1:${ctx.profile.id}`;
+  let selectedTrace:TraceStyle='fire';try{selectedTrace=traceStyle(localStorage.getItem(traceStyleKey));}catch{}
+  trace.dataset.style=selectedTrace;
   // Reuse both fire layers; CSS flickers without a pointer-sampling timer.
   const traceEmber = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   traceEmber.setAttribute('class', 'hl-trace-ember');
@@ -207,6 +212,13 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
     particle.style.animationDuration = `${0.85 + (i % 5) * 0.17}s`;
     anchor.setAttribute('display', 'none');
     anchor.append(particle);
+    for(const style of ['ice','wind'] as const){
+      const decoration=document.createElementNS('http://www.w3.org/2000/svg','g');
+      decoration.setAttribute('class',`hl-trace-${style}`);
+      decoration.style.animationDelay=`${-i*.13}s`;
+      for(const d of TRACE_DECORATIONS[style]){const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);decoration.append(path);}
+      anchor.append(decoration);
+    }
     fire.append(anchor);
     return anchor;
   });
@@ -327,7 +339,7 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
       const scale = (1 - i / MAX_FIRE_PARTICLES * 0.45) * (0.75 + ((i * 7) % 11) / 20);
       // Heat rises in screen space; mirrored side branches looked like leaves.
       const lean = ((i * 7) % 17) - 8;
-      particle.setAttribute('transform', `translate(${anchor.x - rect.left} ${anchor.y - rect.top}) rotate(${lean}) scale(${scale})`);
+      particle.setAttribute('transform', `translate(${anchor.x - rect.left} ${anchor.y - rect.top}) rotate(${selectedTrace==='fire'?lean:anchor.angle}) scale(${scale})`);
       particle.removeAttribute('display');
     }
   }
@@ -1298,11 +1310,20 @@ export function mountMotorics(root: HTMLElement, ctx: AppContext): Unmount {
 
   // --- Переключатель упражнений: тот же board, разные side-панели. ---
   let exercise: Exercise = 'click';
+  const traceStyleSelect=el('select',{'aria-label':'Стиль линии'});
+  for(const [value,label] of Object.entries(TRACE_STYLES)){const option=el('option',{value},[label]);option.selected=value===selectedTrace;traceStyleSelect.append(option);}
+  traceStyleSelect.addEventListener('change',()=>{
+    selectedTrace=traceStyle(traceStyleSelect.value);trace.dataset.style=selectedTrace;
+    try{localStorage.setItem(traceStyleKey,selectedTrace);}catch{}
+    // Repaint the same samples; a visual change must never restart a repetition.
+    drawTrace();
+  });
+  const traceStyleControl=el('label',{class:'trace-style-control'},[el('span',{},['Линия']),traceStyleSelect]);
   const clickSideEls = [
     promptEl,
     progress,
     liveStats,
-    el('div', { class: 'row' }, [startBtn, stopBtn]),
+    el('div', { class: 'row trace-actions' }, [startBtn, stopBtn,traceStyleControl]),
     el('p', { class: 'hint' }, [
       '30 повторов. Сначала кликни по зелёной клетке, потом по новой зелёной.',
     ]),
